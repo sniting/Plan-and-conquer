@@ -915,7 +915,7 @@
             },
 
             async handleLogin() {
-                const email = this.usernameInput.value.trim().toLowerCase();
+                const email = this.usernameInput.value.trim();
                 const password = this.passwordInput.value;
                 const rememberMe = this.rememberMeCheckbox.checked;
 
@@ -943,7 +943,7 @@
                     }
                 } catch (error) {
                     console.error("Login/Signup Error:", error);
-                    this.loginError.textContent = "Error: " + error.code;
+                    this.loginError.textContent = "Error: " + error.message;
                 } finally {
                     this.loginBtn.disabled = false;
                     this.loginBtn.textContent = 'Login or Sign Up';
