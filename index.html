@@ -1,0 +1,1754 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plan & Conquer - Daily Task Assistant</title>
+    <!-- Confetti Library -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        :root {
+          /* Primitive Color Tokens */
+          --color-white: rgba(255, 255, 255, 1);
+          --color-black: rgba(0, 0, 0, 1);
+          --color-cream-50: rgba(252, 252, 249, 1);
+          --color-cream-100: rgba(255, 255, 253, 1);
+          --color-gray-200: rgba(245, 245, 245, 1);
+          --color-gray-300: rgba(167, 169, 169, 1);
+          --color-gray-400: rgba(119, 124, 124, 1);
+          --color-slate-500: rgba(98, 108, 113, 1);
+          --color-brown-600: rgba(94, 82, 64, 1);
+          --color-charcoal-700: rgba(31, 33, 33, 1);
+          --color-charcoal-800: rgba(38, 40, 40, 1);
+          --color-slate-900: rgba(19, 52, 59, 1);
+          --color-teal-300: rgba(50, 184, 198, 1);
+          --color-teal-400: rgba(45, 166, 178, 1);
+          --color-teal-500: rgba(33, 128, 141, 1);
+          --color-teal-600: rgba(29, 116, 128, 1);
+          --color-teal-700: rgba(26, 104, 115, 1);
+          --color-teal-800: rgba(41, 150, 161, 1);
+          --color-red-400: rgba(255, 84, 89, 1);
+          --color-red-500: rgba(192, 21, 47, 1);
+          --color-orange-400: rgba(230, 129, 97, 1);
+          --color-orange-500: rgba(168, 75, 47, 1);
+
+          /* RGB versions for opacity control */
+          --color-brown-600-rgb: 94, 82, 64;
+          --color-teal-500-rgb: 33, 128, 141;
+          --color-slate-900-rgb: 19, 52, 59;
+          --color-slate-500-rgb: 98, 108, 113;
+          --color-red-500-rgb: 192, 21, 47;
+          --color-red-400-rgb: 255, 84, 89;
+          --color-orange-500-rgb: 168, 75, 47;
+          --color-orange-400-rgb: 230, 129, 97;
+
+          /* Background color tokens (Light Mode) */
+          --color-bg-1: rgba(59, 130, 246, 0.08); /* Light blue */
+          --color-bg-2: rgba(245, 158, 11, 0.08); /* Light yellow */
+          --color-bg-3: rgba(34, 197, 94, 0.08); /* Light green */
+          --color-bg-4: rgba(239, 68, 68, 0.08); /* Light red */
+          --color-bg-5: rgba(147, 51, 234, 0.08); /* Light purple */
+          --color-bg-6: rgba(249, 115, 22, 0.08); /* Light orange */
+          --color-bg-7: rgba(236, 72, 153, 0.08); /* Light pink */
+          --color-bg-8: rgba(6, 182, 212, 0.08); /* Light cyan */
+
+          /* Semantic Color Tokens (Light Mode) */
+          --color-background: var(--color-cream-50);
+          --color-surface: var(--color-cream-100);
+          --color-text: var(--color-slate-900);
+          --color-text-secondary: var(--color-slate-500);
+          --color-primary: var(--color-teal-500);
+          --color-primary-hover: var(--color-teal-600);
+          --color-primary-active: var(--color-teal-700);
+          --color-secondary: rgba(var(--color-brown-600-rgb), 0.12);
+          --color-secondary-hover: rgba(var(--color-brown-600-rgb), 0.2);
+          --color-secondary-active: rgba(var(--color-brown-600-rgb), 0.25);
+          --color-border: rgba(var(--color-brown-600-rgb), 0.2);
+          --color-btn-primary-text: var(--color-cream-50);
+          --color-card-border: rgba(var(--color-brown-600-rgb), 0.12);
+          --color-card-border-inner: rgba(var(--color-brown-600-rgb), 0.12);
+          --color-error: var(--color-red-500);
+          --color-success: var(--color-teal-500);
+          --color-warning: var(--color-orange-500);
+          --color-info: var(--color-slate-500);
+          --color-focus-ring: rgba(var(--color-teal-500-rgb), 0.4);
+          --color-select-caret: rgba(var(--color-slate-900-rgb), 0.8);
+
+          /* Common style patterns */
+          --focus-ring: 0 0 0 3px var(--color-focus-ring);
+          --focus-outline: 2px solid var(--color-primary);
+          --status-bg-opacity: 0.15;
+          --status-border-opacity: 0.25;
+          --select-caret-light: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23134252' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+          --select-caret-dark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23f5f5f5' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+
+          /* RGB versions for opacity control */
+          --color-success-rgb: 33, 128, 141;
+          --color-error-rgb: 192, 21, 47;
+          --color-warning-rgb: 168, 75, 47;
+          --color-info-rgb: 98, 108, 113;
+
+          /* Typography */
+          --font-family-base: "FKGroteskNeue", "Geist", "Inter", -apple-system,
+            BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+          --font-family-mono: "Berkeley Mono", ui-monospace, SFMono-Regular, Menlo,
+            Monaco, Consolas, monospace;
+          --font-size-xs: 11px;
+          --font-size-sm: 12px;
+          --font-size-base: 14px;
+          --font-size-md: 14px;
+          --font-size-lg: 16px;
+          --font-size-xl: 18px;
+          --font-size-2xl: 20px;
+          --font-size-3xl: 24px;
+          --font-size-4xl: 30px;
+          --font-weight-normal: 400;
+          --font-weight-medium: 500;
+          --font-weight-semibold: 550;
+          --font-weight-bold: 600;
+          --line-height-tight: 1.2;
+          --line-height-normal: 1.5;
+          --letter-spacing-tight: -0.01em;
+
+          /* Spacing */
+          --space-0: 0;
+          --space-1: 1px;
+          --space-2: 2px;
+          --space-4: 4px;
+          --space-6: 6px;
+          --space-8: 8px;
+          --space-10: 10px;
+          --space-12: 12px;
+          --space-16: 16px;
+          --space-20: 20px;
+          --space-24: 24px;
+          --space-32: 32px;
+
+          /* Border Radius */
+          --radius-sm: 6px;
+          --radius-base: 8px;
+          --radius-md: 10px;
+          --radius-lg: 12px;
+          --radius-full: 9999px;
+
+          /* Shadows */
+          --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.02);
+          --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+          --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.04),
+            0 2px 4px -1px rgba(0, 0, 0, 0.02);
+          --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.04),
+            0 4px 6px -2px rgba(0, 0, 0, 0.02);
+          --shadow-inset-sm: inset 0 1px 0 rgba(255, 255, 255, 0.15),
+            inset 0 -1px 0 rgba(0, 0, 0, 0.03);
+
+          /* Animation */
+          --duration-fast: 150ms;
+          --duration-normal: 250ms;
+          --ease-standard: cubic-bezier(0.16, 1, 0.3, 1);
+
+          /* Layout */
+          --container-sm: 640px;
+          --container-md: 768px;
+          --container-lg: 1024px;
+          --container-xl: 1280px;
+        }
+
+        /* Dark mode colors */
+        [data-color-scheme="dark"] {
+          /* RGB versions for opacity control (dark mode) */
+          --color-gray-400-rgb: 119, 124, 124;
+          --color-teal-300-rgb: 50, 184, 198;
+          --color-gray-300-rgb: 167, 169, 169;
+          --color-gray-200-rgb: 245, 245, 245;
+
+          /* Colorful background palette - Dark Mode */
+          --color-bg-1: rgba(29, 78, 216, 0.15); /* Dark blue */
+          --color-bg-2: rgba(180, 83, 9, 0.15); /* Dark yellow */
+          --color-bg-3: rgba(21, 128, 61, 0.15); /* Dark green */
+          --color-bg-4: rgba(185, 28, 28, 0.15); /* Dark red */
+          --color-bg-5: rgba(107, 33, 168, 0.15); /* Dark purple */
+          --color-bg-6: rgba(194, 65, 12, 0.15); /* Dark orange */
+          --color-bg-7: rgba(190, 24, 93, 0.15); /* Dark pink */
+          --color-bg-8: rgba(8, 145, 178, 0.15); /* Dark cyan */
+          
+          /* Semantic Color Tokens (Dark Mode) */
+          --color-background: var(--color-charcoal-700);
+          --color-surface: var(--color-charcoal-800);
+          --color-text: var(--color-gray-200);
+          --color-text-secondary: rgba(var(--color-gray-300-rgb), 0.7);
+          --color-primary: var(--color-teal-300);
+          --color-primary-hover: var(--color-teal-400);
+          --color-primary-active: var(--color-teal-800);
+          --color-secondary: rgba(var(--color-gray-400-rgb), 0.15);
+          --color-secondary-hover: rgba(var(--color-gray-400-rgb), 0.25);
+          --color-secondary-active: rgba(var(--color-gray-400-rgb), 0.3);
+          --color-border: rgba(var(--color-gray-400-rgb), 0.3);
+          --color-error: var(--color-red-400);
+          --color-success: var(--color-teal-300);
+          --color-warning: var(--color-orange-400);
+          --color-info: var(--color-gray-300);
+          --color-focus-ring: rgba(var(--color-teal-300-rgb), 0.4);
+          --color-btn-primary-text: var(--color-slate-900);
+          --color-card-border: rgba(var(--color-gray-400-rgb), 0.15);
+          --color-card-border-inner: rgba(var(--color-gray-400-rgb), 0.15);
+          --shadow-inset-sm: inset 0 1px 0 rgba(255, 255, 255, 0.1),
+            inset 0 -1px 0 rgba(0, 0, 0, 0.15);
+          --color-border-secondary: rgba(var(--color-gray-400-rgb), 0.2);
+          --color-select-caret: rgba(var(--color-gray-200-rgb), 0.8);
+
+          /* Common style patterns - updated for dark mode */
+          --select-caret-dark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23f5f5f5' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+
+          /* RGB versions for dark mode */
+          --color-success-rgb: var(--color-teal-300-rgb);
+          --color-error-rgb: var(--color-red-400-rgb);
+          --color-warning-rgb: var(--color-orange-400-rgb);
+          --color-info-rgb: var(--color-gray-300-rgb);
+        }
+
+        /* Base styles */
+        html {
+          font-size: var(--font-size-base);
+          font-family: var(--font-family-base);
+          line-height: var(--line-height-normal);
+          color: var(--color-text);
+          background-color: var(--color-background);
+          -webkit-font-smoothing: antialiased;
+          box-sizing: border-box;
+        }
+
+        body {
+          margin: 0;
+          padding: 0;
+        }
+
+        *,
+        *::before,
+        *::after {
+          box-sizing: inherit;
+        }
+
+        /* Typography */
+        h1, h2, h3, h4, h5, h6 {
+          margin: 0;
+          font-weight: var(--font-weight-semibold);
+          line-height: var(--line-height-tight);
+          color: var(--color-text);
+          letter-spacing: var(--letter-spacing-tight);
+        }
+        h1 { font-size: var(--font-size-4xl); }
+        h2 { font-size: var(--font-size-3xl); }
+        h3 { font-size: var(--font-size-2xl); }
+        h4 { font-size: var(--font-size-xl); }
+        h5 { font-size: var(--font-size-lg); }
+        h6 { font-size: var(--font-size-md); }
+
+        /* Buttons */
+        .btn {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          padding: var(--space-8) var(--space-16);
+          border-radius: var(--radius-base);
+          font-size: var(--font-size-base);
+          font-weight: 500;
+          line-height: 1.5;
+          cursor: pointer;
+          transition: all var(--duration-normal) var(--ease-standard);
+          border: none;
+          text-decoration: none;
+          position: relative;
+        }
+        .btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+        .btn--primary { background: var(--color-primary); color: var(--color-btn-primary-text); }
+        .btn--primary:hover { background: var(--color-primary-hover); }
+        .btn--secondary { background: var(--color-secondary); color: var(--color-text); }
+        .btn--secondary:hover { background: var(--color-secondary-hover); }
+        .btn--sm { padding: var(--space-4) var(--space-12); font-size: var(--font-size-sm); border-radius: var(--radius-sm); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* Form elements */
+        .form-control {
+          display: block;
+          width: 100%;
+          padding: var(--space-8) var(--space-12);
+          font-size: var(--font-size-md);
+          line-height: 1.5;
+          color: var(--color-text);
+          background-color: var(--color-surface);
+          border: 1px solid var(--color-border);
+          border-radius: var(--radius-base);
+          transition: border-color var(--duration-fast) var(--ease-standard), box-shadow var(--duration-fast) var(--ease-standard);
+        }
+        textarea.form-control { font-family: var(--font-family-base); font-size: var(--font-size-base); }
+        select.form-control {
+          -webkit-appearance: none; -moz-appearance: none; appearance: none;
+          background-image: var(--select-caret-light);
+          background-repeat: no-repeat;
+          background-position: right var(--space-12) center;
+          background-size: 16px;
+          padding-right: var(--space-32);
+        }
+        [data-color-scheme="dark"] select.form-control { background-image: var(--select-caret-dark); }
+        .form-control:focus { border-color: var(--color-primary); outline: var(--focus-outline); }
+        .form-label { display: block; margin-bottom: var(--space-8); font-weight: var(--font-weight-medium); font-size: var(--font-size-sm); }
+        .form-group { margin-bottom: var(--space-16); }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-12); margin-bottom: var(--space-12); }
+
+        /* Utility classes */
+        .hidden { display: none; }
+
+        /* Accessibility */
+        :focus-visible { outline: var(--focus-outline); outline-offset: 2px; }
+
+        /* Login Screen Styles */
+        #login-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: var(--color-background);
+        }
+        .login-box {
+            background-color: var(--color-surface);
+            padding: var(--space-32);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-lg);
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+        .login-box h1 {
+            color: var(--color-primary);
+            margin-bottom: var(--space-24);
+        }
+        .login-box .form-group {
+            text-align: left;
+        }
+        #login-error {
+            color: var(--color-error);
+            margin-top: var(--space-16);
+            font-size: var(--font-size-sm);
+            min-height: 20px;
+        }
+        .remember-me {
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            gap: var(--space-8);
+            margin-top: var(--space-16);
+        }
+        .remember-me label {
+            font-size: var(--font-size-sm);
+            color: var(--color-text-secondary);
+        }
+        #google-login-btn {
+            background-color: #4285F4;
+            color: white;
+            margin-top: 16px;
+            width: 100%;
+        }
+        #google-login-btn:hover {
+            background-color: #357ae8;
+        }
+        .login-divider {
+            display: flex;
+            align-items: center;
+            text-align: center;
+            color: var(--color-text-secondary);
+            margin: var(--space-16) 0;
+            font-size: var(--font-size-sm);
+        }
+        .login-divider::before, .login-divider::after {
+            content: '';
+            flex: 1;
+            border-bottom: 1px solid var(--color-border);
+        }
+        .login-divider:not(:empty)::before {
+            margin-right: .25em;
+        }
+        .login-divider:not(:empty)::after {
+            margin-left: .25em;
+        }
+
+
+        /* Application-specific styles */
+        .app-container { min-height: 100vh; background-color: var(--color-background); }
+        .app-header {
+          background-color: var(--color-surface);
+          border-bottom: 1px solid var(--color-border);
+          padding: var(--space-12) var(--space-24);
+          display: grid;
+          grid-template-columns: 1fr 2fr 1fr;
+          align-items: center;
+          gap: var(--space-16);
+          box-shadow: var(--shadow-sm);
+          position: sticky;
+          top: 0;
+          z-index: 100;
+        }
+        .header-left h1 { font-size: var(--font-size-xl); margin-bottom: var(--space-4); color: var(--color-primary); }
+        .header-left p { margin: 0; color: var(--color-text-secondary); font-size: var(--font-size-sm); }
+        .header-center { text-align: center; }
+        .current-time-display { display: flex; flex-direction: column; align-items: center; gap: var(--space-4); }
+        .time-large { font-size: var(--font-size-4xl); font-weight: var(--font-weight-bold); color: var(--color-primary); font-family: var(--font-family-mono); letter-spacing: -0.02em; }
+        .date-display { font-size: var(--font-size-md); color: var(--color-text-secondary); font-weight: var(--font-weight-medium); }
+        .current-task-indicator { font-size: var(--font-size-sm); color: var(--color-success); font-weight: var(--font-weight-medium); padding: var(--space-4) var(--space-8); background-color: var(--color-bg-3); border-radius: var(--radius-full); max-width: 300px; text-align: center; }
+        .header-right { display: flex; align-items: center; justify-content: flex-end; gap: var(--space-12); }
+        .date-navigation { display: flex; align-items: center; gap: var(--space-8); }
+
+        .status-bar { background-color: var(--color-bg-1); padding: var(--space-12) var(--space-24); display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--color-border); flex-wrap: wrap; gap: var(--space-16); }
+        .status-item { display: flex; align-items: center; gap: var(--space-8); font-size: var(--font-size-sm); font-weight: var(--font-weight-medium); color: var(--color-text-secondary); }
+        .viewing-date { color: var(--color-primary); font-weight: var(--font-weight-bold); }
+        .rso-shift-display { background-color: var(--color-surface); padding: var(--space-6) var(--space-12); border-radius: var(--radius-base); border: 1px solid var(--color-border); }
+
+        .dashboard { padding: var(--space-24); max-width: var(--container-xl); margin: 0 auto; display: grid; gap: var(--space-32); }
+        .task-management-grid { display: grid; grid-template-columns: 1fr 1.2fr 1fr; gap: var(--space-20); min-height: 600px; }
+        .task-column { background-color: var(--color-surface); border-radius: var(--radius-lg); border: 1px solid var(--color-card-border); box-shadow: var(--shadow-sm); display: flex; flex-direction: column; overflow: hidden; }
+        .column-header { padding: var(--space-16) var(--space-20); border-bottom: 1px solid var(--color-card-border-inner); display: flex; justify-content: space-between; align-items: center; background-color: var(--color-background); }
+        .column-header h2 { font-size: var(--font-size-lg); margin: 0; display: flex; align-items: center; gap: var(--space-8); color: var(--color-text); }
+        .task-count { background-color: var(--color-primary); color: var(--color-btn-primary-text); border-radius: var(--radius-full); padding: var(--space-2) var(--space-8); font-size: var(--font-size-xs); font-weight: var(--font-weight-bold); min-width: 24px; text-align: center; }
+        .column-actions, .progress-indicator, .completion-stats { display: flex; align-items: center; gap: var(--space-8); font-size: var(--font-size-sm); color: var(--color-text-secondary); }
+        .task-list { flex: 1; padding: var(--space-16); display: flex; flex-direction: column; gap: var(--space-12); min-height: 200px; overflow-y: auto; }
+
+        /* Drag and Drop Styles */
+        .task-item.dragging { opacity: 0.5; transform: scale(1.05); }
+        .task-list.drag-over { background-color: rgba(var(--color-teal-500-rgb), 0.1); border: 2px dashed var(--color-primary); }
+        [data-color-scheme="dark"] .task-list.drag-over { background-color: rgba(var(--color-teal-300-rgb), 0.1); }
+
+
+        .task-item { background-color: var(--color-background); border: 1px solid var(--color-border); border-radius: var(--radius-base); padding: var(--space-12); transition: all var(--duration-fast) var(--ease-standard); cursor: grab; position: relative; }
+        .task-item:active { cursor: grabbing; }
+        .task-item:hover .delete-task-btn { opacity: 1; }
+        .task-item.active { border-color: var(--color-success); background-color: var(--color-bg-3); box-shadow: 0 0 0 2px rgba(var(--color-success-rgb), 0.2); }
+        .task-item.long-duration { border-left: 4px solid var(--color-warning); }
+        .task-item.long-duration .task-title::after { content: "📋"; margin-left: var(--space-4); font-size: var(--font-size-sm); }
+        .task-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: var(--space-8); }
+        .task-title { font-weight: var(--font-weight-medium); color: var(--color-text); margin: 0; font-size: var(--font-size-md); line-height: 1.4; }
+        .task-time { font-size: var(--font-size-xs); color: var(--color-text-secondary); font-weight: var(--font-weight-medium); font-family: var(--font-family-mono); }
+        .task-duration-badge { font-size: var(--font-size-xs); padding: var(--space-2) var(--space-6); border-radius: var(--radius-sm); background-color: var(--color-secondary); color: var(--color-text-secondary); font-weight: var(--font-weight-medium); }
+        .task-meta { display: flex; justify-content: space-between; align-items: center; margin-top: var(--space-8); font-size: var(--font-size-xs); }
+        .task-category { padding: var(--space-2) var(--space-6); border-radius: var(--radius-sm); text-transform: uppercase; font-weight: var(--font-weight-bold); font-size: var(--font-size-xs); }
+        .task-category.work { background-color: var(--color-bg-1); color: var(--color-primary); }
+        .task-category.personal { background-color: var(--color-bg-6); color: var(--color-warning); }
+        .task-category.rso { background-color: var(--color-bg-3); color: var(--color-success); }
+        .task-category.school { background-color: var(--color-bg-5); color: var(--color-info); }
+        .task-timer { font-family: var(--font-family-mono); font-weight: var(--font-weight-bold); color: var(--color-primary); font-size: var(--font-size-sm); }
+        .task-actions { display: flex; gap: var(--space-4); margin-top: var(--space-8); }
+        .task-actions .btn { font-size: var(--font-size-xs); padding: var(--space-4) var(--space-8); }
+        .delete-task-btn { position: absolute; top: 4px; right: 4px; background: var(--color-secondary); color: var(--color-text-secondary); border: none; border-radius: 50%; width: 20px; height: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 12px; line-height: 1; padding: 0; opacity: 0; transition: opacity var(--duration-fast); }
+        .delete-task-btn:hover { background: var(--color-error); color: white; }
+
+        .sub-tasks-container { margin-top: var(--space-8); padding-top: var(--space-8); border-top: 1px solid var(--color-border); }
+        .active-sub-task { background-color: var(--color-bg-3); padding: var(--space-8); margin-bottom: var(--space-8); border-radius: var(--radius-base); border-left: 3px solid var(--color-success); }
+        .active-sub-task-title { font-weight: var(--font-weight-semibold); margin-bottom: var(--space-4); color: var(--color-success); }
+        .sub-task-summary { font-size: var(--font-size-xs); color: var(--color-text-secondary); text-align: center; }
+        .active-sub-task .task-timer { font-weight: bold; color: var(--color-success); text-align: right; font-size: var(--font-size-md); }
+
+
+        .rso-manager { background-color: var(--color-surface); border-radius: var(--radius-lg); border: 1px solid var(--color-card-border); padding: var(--space-20); }
+        .rso-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-16); }
+        .rso-header h2 { font-size: var(--font-size-xl); margin: 0; display: flex; align-items: center; gap: var(--space-8); color: var(--color-text); }
+        .rso-shift-types { display: flex; gap: var(--space-12); margin-bottom: var(--space-16); flex-wrap: wrap; }
+        .shift-type { display: flex; flex-direction: column; align-items: center; padding: var(--space-12); background-color: var(--color-background); border: 1px solid var(--color-border); border-radius: var(--radius-base); cursor: pointer; transition: all var(--duration-fast) var(--ease-standard); min-width: 80px; }
+        .shift-type:hover { background-color: var(--color-secondary); transform: translateY(-2px); box-shadow: var(--shadow-sm); }
+        .shift-label { font-size: var(--font-size-lg); font-weight: var(--font-weight-bold); margin-bottom: var(--space-4); }
+        .shift-time { font-size: var(--font-size-xs); opacity: 0.8; }
+        .rso-calendar-mini { background-color: var(--color-background); border-radius: var(--radius-base); padding: var(--space-16); border: 1px solid var(--color-border); min-height: 120px; display: flex; align-items: center; justify-content: center; color: var(--color-text-secondary); font-size: var(--font-size-sm); }
+
+        #todayRSOShiftContainer { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+        .rso-shift-tag { background-color: var(--color-primary); color: var(--color-btn-primary-text); padding: 4px 8px; border-radius: var(--radius-full); font-size: var(--font-size-xs); font-weight: bold; display: inline-flex; align-items: center; gap: 6px; }
+        [data-color-scheme="dark"] .rso-shift-tag { background-color: var(--color-primary); color: var(--color-btn-primary-text); }
+        .delete-shift-btn { background: rgba(0,0,0,0.2); color: white; border: none; border-radius: 50%; width: 16px; height: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 12px; line-height: 1; padding: 0; }
+        .delete-shift-btn:hover { background: rgba(0,0,0,0.4); }
+
+        .quick-actions-section { background-color: var(--color-surface); border-radius: var(--radius-lg); border: 1px solid var(--color-card-border); padding: var(--space-20); }
+        .quick-actions-section h2 { font-size: var(--font-size-xl); margin-bottom: var(--space-16); display: flex; align-items: center; gap: var(--space-8); color: var(--color-text); }
+        .actions-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-12); margin-bottom: var(--space-20); }
+        .notes-area { display: flex; flex-direction: column; gap: var(--space-12); }
+        #quickNotes { resize: vertical; min-height: 80px; font-family: var(--font-family-base); }
+
+        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); display: flex; justify-content: center; align-items: center; z-index: 1000; backdrop-filter: blur(2px); }
+        .modal.hidden { display: none; }
+        .modal-content { background-color: var(--color-surface); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); width: 90%; max-width: 600px; max-height: 90vh; overflow-y: auto; animation: modalSlideIn 0.3s ease-out; }
+        @keyframes modalSlideIn { from { opacity: 0; transform: scale(0.9) translateY(-20px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+        .modal-header { padding: var(--space-20); border-bottom: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center; }
+        .modal-header h2 { margin: 0; font-size: var(--font-size-xl); color: var(--color-text); }
+        .modal-close { background: none; border: none; font-size: var(--font-size-2xl); color: var(--color-text-secondary); cursor: pointer; padding: var(--space-4); border-radius: var(--radius-base); transition: color var(--duration-fast) var(--ease-standard); }
+        .modal-close:hover { color: var(--color-text); background-color: var(--color-secondary); }
+        .modal-body { padding: var(--space-20); }
+        .modal-footer { padding: var(--space-20); border-top: 1px solid var(--color-border); display: flex; gap: var(--space-12); justify-content: flex-end; }
+        .modal-description { color: var(--color-text-secondary); margin-bottom: var(--space-16); font-size: var(--font-size-sm); }
+
+        .sub-task-form { background-color: var(--color-background); padding: var(--space-16); border-radius: var(--radius-base); margin-bottom: var(--space-20); }
+        .sub-tasks-list { margin-bottom: var(--space-20); }
+        .sub-task-list-item { display: flex; justify-content: space-between; align-items: center; padding: var(--space-12); background-color: var(--color-background); border: 1px solid var(--color-border); border-radius: var(--radius-base); margin-bottom: var(--space-8); }
+        .sub-task-info { flex: 1; }
+        .sub-task-title { font-weight: var(--font-weight-medium); color: var(--color-text); margin-bottom: var(--space-4); }
+        .sub-task-duration { font-size: var(--font-size-sm); color: var(--color-text-secondary); }
+        .sub-task-actions { display: flex; gap: var(--space-4); }
+        .timeline-allocation { background-color: var(--color-background); padding: var(--space-16); border-radius: var(--radius-base); }
+        .timeline-allocation h3 { margin-bottom: var(--space-12); font-size: var(--font-size-lg); color: var(--color-text); }
+        .allocation-bar { height: 20px; background-color: var(--color-secondary); border-radius: var(--radius-base); overflow: hidden; margin-bottom: var(--space-8); display: flex; }
+        .allocation-segment { height: 100%; transition: all var(--duration-normal) var(--ease-standard); display: flex; align-items: center; justify-content: center; font-size: var(--font-size-xs); font-weight: var(--font-weight-bold); color: white; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3); }
+        .remaining-time { font-size: var(--font-size-sm); color: var(--color-text-secondary); text-align: center; }
+
+        .routine-tasks-list { display: flex; flex-direction: column; gap: var(--space-12); }
+        .routine-task-item { display: flex; justify-content: space-between; align-items: center; padding: var(--space-12); background-color: var(--color-background); border: 1px solid var(--color-border); border-radius: var(--radius-base); }
+        .routine-task-info { flex: 1; }
+        .routine-task-controls { display: flex; gap: var(--space-8); align-items: center; }
+        .routine-task-controls input[type="time"], .routine-task-controls input[type="number"] { padding: var(--space-4) var(--space-8); border: 1px solid var(--color-border); border-radius: var(--radius-sm); font-size: var(--font-size-sm); width: 80px; }
+
+        @media (max-width: 1200px) {
+          .task-management-grid { grid-template-columns: 1fr; gap: var(--space-16); }
+          .task-column { min-height: 300px; }
+        }
+        @media (max-width: 768px) {
+          .app-header { grid-template-columns: 1fr; text-align: center; gap: var(--space-12); }
+          .header-left, .header-center, .header-right { text-align: center; }
+          .time-large { font-size: var(--font-size-3xl); }
+          .status-bar { flex-direction: column; align-items: center; gap: var(--space-8); }
+          .dashboard { padding: var(--space-16); }
+          .actions-grid { grid-template-columns: 1fr; }
+          .form-row { grid-template-columns: 1fr; }
+          .modal-content { width: 95%; margin: var(--space-16); }
+          .modal-footer { flex-direction: column; }
+          .date-navigation { flex-wrap: wrap; justify-content: center; }
+          .rso-shift-types { justify-content: center; }
+        }
+    </style>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    
+    <div id="login-container">
+        <div class="login-box">
+            <h1><i class="fas fa-calendar-check"></i> Plan & Conquer</h1>
+            <div class="form-group">
+                <label for="username" class="form-label">Email</label>
+                <input type="email" id="username" class="form-control" placeholder="Enter your email">
+            </div>
+            <div class="form-group">
+                <label for="password" class="form-label">Password</label>
+                <input type="password" id="password" class="form-control" placeholder="Enter your password">
+            </div>
+            <div class="remember-me">
+                <input type="checkbox" id="rememberMe">
+                <label for="rememberMe">Remember me for 30 days</label>
+            </div>
+            <p id="login-error"></p>
+            <button id="loginBtn" class="btn btn--primary" style="width: 100%; margin-top: 16px;">Login or Sign Up</button>
+            <div class="login-divider">or</div>
+            <button id="google-login-btn" class="btn">
+                <svg aria-hidden="true" width="18" height="18" viewBox="0 0 18 18" style="margin-right: 8px;"><path d="M16.51 8.25H9.03v3.04h4.18c-.16 1.01-.6 1.84-1.44 2.44v2.02h2.6c1.52-1.4 2.38-3.48 2.38-5.96 0-.62-.06-1.22-.17-1.78z" fill="#4285F4"></path><path d="M9.03 16.73c2.04 0 3.75-.68 5-1.84l-2.6-2.02c-.68.45-1.54.72-2.4.72-1.84 0-3.4-1.24-3.96-2.91H2.25v2.07A6.99 6.99 0 009.03 16.73z" fill="#34A853"></path><path d="M5.07 10.75c-.14-.42-.22-.86-.22-1.3s.08-.88.22-1.3V6.08H2.25A6.99 6.99 0 001.5 9.4c0 1.45.42 2.8 1.14 3.97l2.43-1.62z" fill="#FBBC05"></path><path d="M9.03 3.55c1.11 0 2.08.39 2.84 1.12l2.3-2.3C12.78.93 11.04 0 9.03 0 5.45 0 2.48 2.04 1.14 5.07l2.6 2.02C4.24 5.54 5.8 4.28 7.64 4.28l1.39-.73z" fill="#EA4335"></path></svg>
+                Sign in with Google
+            </button>
+        </div>
+    </div>
+
+    <div class="app-container hidden">
+        <!-- Header with Real-time Clock -->
+        <header class="app-header">
+            <div class="header-left">
+                <h1><i class="fas fa-calendar-check"></i> Plan & Conquer</h1>
+                <p>Welcome back, <span id="usernameDisplay"></span>!</p>
+            </div>
+            <div class="header-center">
+                <div class="current-time-display">
+                    <div id="currentTime" class="time-large"></div>
+                    <div id="currentDate" class="date-display"></div>
+                    <div id="currentTask" class="current-task-indicator"></div>
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="date-navigation">
+                    <button id="prevDay" class="btn btn--secondary btn--sm">
+                        <i class="fas fa-chevron-left"></i> Prev
+                    </button>
+                    <button id="todayBtn" class="btn btn--primary btn--sm">Today</button>
+                    <button id="nextDay" class="btn btn--secondary btn--sm">
+                        Next <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+                <button id="themeToggle" class="btn btn--secondary btn--sm">
+                    <i class="fas fa-moon"></i>
+                </button>
+                <button id="logoutBtn" class="btn btn--secondary btn--sm">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </button>
+            </div>
+        </header>
+
+        <!-- Current Status Bar -->
+        <section class="status-bar">
+            <div class="status-item">
+                <span id="viewingDate" class="viewing-date"></span>
+            </div>
+            <div class="status-item">
+                <i class="fas fa-clock"></i>
+                <span id="nextEventCountdown"></span>
+            </div>
+            <div class="status-item rso-shift-display" id="rsoShiftDisplay">
+                <i class="fas fa-user-friends"></i>
+                <div id="todayRSOShiftContainer">
+                    <span>No RSO Shift</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Main Dashboard -->
+        <main class="dashboard">
+            <div class="task-management-grid">
+                <!-- To Do Column -->
+                <section class="task-column to-do-column">
+                    <div class="column-header">
+                        <h2><i class="fas fa-list"></i> To Do <span id="todoCount" class="task-count">0</span></h2>
+                        <div class="column-actions">
+                            <button id="addCustomTask" class="btn btn--primary btn--sm">
+                                <i class="fas fa-plus"></i> Add Task
+                            </button>
+                        </div>
+                    </div>
+                    <div id="todoTasks" class="task-list" data-status="todo"></div>
+                </section>
+
+                <!-- In Progress Column -->
+                <section class="task-column in-progress-column">
+                    <div class="column-header">
+                        <h2><i class="fas fa-play-circle"></i> In Progress <span id="inProgressCount" class="task-count">0</span></h2>
+                        <div class="progress-indicator">
+                            <span id="activeTaskTimer"></span>
+                        </div>
+                    </div>
+                    <div id="inProgressTasks" class="task-list" data-status="inProgress"></div>
+                </section>
+
+                <!-- Done Column -->
+                <section class="task-column done-column">
+                    <div class="column-header">
+                        <h2><i class="fas fa-check-circle"></i> Done <span id="doneCount" class="task-count">0</span></h2>
+                        <div class="completion-stats">
+                            <span id="completionPercentage">0%</span>
+                        </div>
+                    </div>
+                    <div id="doneTasks" class="task-list" data-status="done"></div>
+                </section>
+            </div>
+
+            <!-- RSO Shift Manager -->
+            <section class="rso-manager">
+                <div class="rso-header">
+                    <h2><i class="fas fa-user-friends"></i> RSO Shift Manager</h2>
+                    <button id="addRSOShift" class="btn btn--primary btn--sm">
+                        <i class="fas fa-plus"></i> Add Shift
+                    </button>
+                </div>
+                <div class="rso-shift-types">
+                    <div class="shift-type" data-shift="A">
+                        <span class="shift-label">A</span>
+                        <span class="shift-time">8:00AM-12:00PM</span>
+                    </div>
+                    <div class="shift-type" data-shift="B">
+                        <span class="shift-label">B</span>
+                        <span class="shift-time">12:00PM-4:00PM</span>
+                    </div>
+                    <div class="shift-type" data-shift="C1">
+                        <span class="shift-label">C1</span>
+                        <span class="shift-time">4:00PM-8:00PM</span>
+                    </div>
+                    <div class="shift-type" data-shift="C2">
+                        <span class="shift-label">C2</span>
+                        <span class="shift-time">8:00PM-12:00AM</span>
+                    </div>
+                    <div class="shift-type" data-shift="M">
+                        <span class="shift-label">M</span>
+                        <span class="shift-time">12:00AM-8:00AM</span>
+                    </div>
+                </div>
+                <div class="rso-calendar-mini" id="rsoCalendarMini"></div>
+            </section>
+
+            <!-- Quick Actions & Notes -->
+            <section class="quick-actions-section">
+                <h2><i class="fas fa-bolt"></i> Quick Actions & Notes</h2>
+                <div class="actions-grid">
+                    <button id="editRoutineBtn" class="btn btn--secondary">
+                        <i class="fas fa-edit"></i> Edit Today's Routine
+                    </button>
+                    <button id="planFutureBtn" class="btn btn--secondary">
+                        <i class="fas fa-calendar-plus"></i> Plan Future Date
+                    </button>
+                </div>
+                <div class="notes-area">
+                    <textarea id="quickNotes" class="form-control" placeholder="Quick notes & reminders..." rows="4"></textarea>
+                    <button id="saveNotes" class="btn btn--primary btn--sm">
+                        <i class="fas fa-save"></i> Save Notes
+                    </button>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Add/Edit Custom Task Modal -->
+    <div id="addTaskModal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Add Custom Task</h2>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Task Title</label>
+                    <input type="text" id="taskTitle" class="form-control" placeholder="Enter task title">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Start Time</label>
+                        <input type="time" id="taskTime" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Duration (minutes)</label>
+                        <input type="number" id="taskDuration" class="form-control" min="5" max="480" step="5" value="30">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Category</label>
+                        <select id="taskCategory" class="form-control">
+                            <option value="personal">Personal</option>
+                            <option value="work">Work</option>
+                            <option value="rso">RSO</option>
+                            <option value="school">School</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Priority</label>
+                        <select id="taskPriority" class="form-control">
+                            <option value="low">Low</option>
+                            <option value="medium">Medium</option>
+                            <option value="high">High</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Notes</label>
+                    <textarea id="taskNotes" class="form-control" rows="2" placeholder="Optional notes..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="saveTask" class="btn btn--primary">Add Task</button>
+                <button class="btn btn--secondary modal-close">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sub-Planning Modal -->
+    <div id="subPlanModal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="subPlanTitle">Plan Long Duration Task</h2>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form class="sub-task-form">
+                    <div class="form-group">
+                        <label class="form-label">Sub-task Title</label>
+                        <input type="text" id="subTaskTitle" class="form-control" placeholder="What will you work on?">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Start Time (Optional)</label>
+                            <input type="time" id="subTaskStartTime" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">End Time (Optional)</label>
+                            <input type="time" id="subTaskEndTime" class="form-control">
+                        </div>
+                    </div>
+                     <div class="form-group">
+                        <label class="form-label">Duration (minutes)</label>
+                        <input type="number" id="subTaskDuration" class="form-control" min="5" max="300" step="5" value="30">
+                    </div>
+                    <button type="button" id="addSubTask" class="btn btn--primary btn--sm">Add Sub-task</button>
+                </form>
+                <div id="subTasksList" class="sub-tasks-list"></div>
+                <div class="timeline-allocation">
+                    <h3>Time Allocation</h3>
+                    <div id="timeAllocationBar" class="allocation-bar"></div>
+                    <div id="remainingTime" class="remaining-time"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="saveSubPlan" class="btn btn--primary">Save & Close</button>
+                <button class="btn btn--secondary modal-close">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add RSO Shift Modal -->
+    <div id="addRSOModal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Add RSO Shift</h2>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Date</label>
+                        <input type="date" id="shiftDate" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Shift Type</label>
+                        <select id="shiftType" class="form-control">
+                            <option value="A">A - 8:00AM-12:00PM</option>
+                            <option value="B">B - 12:00PM-4:00PM</option>
+                            <option value="C1">C1 - 4:00PM-8:00PM</option>
+                            <option value="C2">C2 - 8:00PM-12:00AM</option>
+                            <option value="M">M - 12:00AM-8:00AM</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="saveRSOShift" class="btn btn--primary">Add Shift</button>
+                <button class="btn btn--secondary modal-close">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Routine Modal -->
+    <div id="editRoutineModal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Edit Today's Routine</h2>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p class="modal-description">Modify today's routine tasks. Changes apply only to the selected date.</p>
+                <div id="routineTasksList" class="routine-tasks-list"></div>
+            </div>
+            <div class="modal-footer">
+                <button id="saveRoutineChanges" class="btn btn--primary">Save Changes</button>
+                <button id="resetToDefault" class="btn btn--secondary">Reset to Default</button>
+                <button class="btn btn--secondary modal-close">Cancel</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Firebase SDKs -->
+    <script type="module">
+        // ===================================================================================
+        // PASTE YOUR FIREBASE CONFIGURATION HERE
+        // ===================================================================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyCWnD3jTPpB865HL_3-qezaRpx_CYxCJck",
+            authDomain: "plan-and-conquer-7fc66.firebaseapp.com",
+            projectId: "plan-and-conquer-7fc66",
+            storageBucket: "plan-and-conquer-7fc66.appspot.com",
+            messagingSenderId: "689721738281",
+            appId: "1:689721738281:web:0711f6005317e264ce0838",
+            measurementId: "G-95L8ECDJKY"
+        };
+        // ===================================================================================
+
+        // Import Firebase modules
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { 
+            getAuth, 
+            onAuthStateChanged, 
+            setPersistence, 
+            browserLocalPersistence, 
+            browserSessionPersistence,
+            createUserWithEmailAndPassword,
+            signInWithEmailAndPassword,
+            signOut,
+            GoogleAuthProvider,
+            signInWithPopup
+        } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+        import { 
+            getFirestore, 
+            doc, 
+            getDoc, 
+            setDoc,
+            onSnapshot
+        } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        let currentAppInstance = null;
+        let unsubscribeFromData = null; 
+
+        // --- AUTHENTICATION MANAGER ---
+        const authManager = {
+            loginContainer: document.getElementById('login-container'),
+            appContainer: document.querySelector('.app-container'),
+            loginBtn: document.getElementById('loginBtn'),
+            googleLoginBtn: document.getElementById('google-login-btn'),
+            logoutBtn: document.getElementById('logoutBtn'),
+            usernameInput: document.getElementById('username'),
+            passwordInput: document.getElementById('password'),
+            rememberMeCheckbox: document.getElementById('rememberMe'),
+            loginError: document.getElementById('login-error'),
+            
+            init() {
+                this.loginBtn.addEventListener('click', () => this.handleLogin());
+                this.googleLoginBtn.addEventListener('click', () => this.handleGoogleLogin());
+                this.logoutBtn.addEventListener('click', () => this.handleLogout());
+
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        const username = user.displayName || user.email.split('@')[0];
+                        this.showApp(username);
+                        await this.startApp(user.uid, username);
+                    } else {
+                        this.showLogin();
+                        if (currentAppInstance) {
+                            currentAppInstance.destroy();
+                            currentAppInstance = null;
+                        }
+                    }
+                });
+            },
+
+            async handleLogin() {
+                const email = this.usernameInput.value.trim().toLowerCase();
+                const password = this.passwordInput.value;
+                const rememberMe = this.rememberMeCheckbox.checked;
+
+                if (!email || password.length < 6) {
+                    this.loginError.textContent = 'A valid email is required and password must be at least 6 characters.';
+                    return;
+                }
+                this.loginError.textContent = '';
+                this.loginBtn.disabled = true;
+                this.loginBtn.textContent = 'Logging in...';
+
+                const persistence = rememberMe ? browserLocalPersistence : browserSessionPersistence;
+                
+                try {
+                    await setPersistence(auth, persistence);
+                    
+                    try {
+                        await signInWithEmailAndPassword(auth, email, password);
+                    } catch (error) {
+                        if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
+                            await createUserWithEmailAndPassword(auth, email, password);
+                        } else {
+                            throw error;
+                        }
+                    }
+                } catch (error) {
+                    console.error("Login/Signup Error:", error);
+                    this.loginError.textContent = "Error: " + error.code;
+                } finally {
+                    this.loginBtn.disabled = false;
+                    this.loginBtn.textContent = 'Login or Sign Up';
+                }
+            },
+
+            async handleGoogleLogin() {
+                const provider = new GoogleAuthProvider();
+                try {
+                    await signInWithPopup(auth, provider);
+                } catch (error) {
+                    console.error("Google Sign-In Error:", error);
+                    this.loginError.textContent = "Could not sign in with Google. Please try again.";
+                }
+            },
+
+            async handleLogout() {
+                if (unsubscribeFromData) {
+                    unsubscribeFromData();
+                    unsubscribeFromData = null;
+                }
+                await signOut(auth);
+            },
+
+            showLogin() {
+                this.loginContainer.classList.remove('hidden');
+                this.appContainer.classList.add('hidden');
+            },
+
+            showApp(username) {
+                this.loginContainer.classList.add('hidden');
+                this.appContainer.classList.remove('hidden');
+                document.getElementById('usernameDisplay').textContent = username;
+            },
+
+            async startApp(userId, username) {
+                if (currentAppInstance) return;
+
+                const dataManager = new FirestoreDataManager(userId);
+                const initialData = await dataManager.loadInitialData();
+                
+                currentAppInstance = new PersonalAssistantApp(userId, username, dataManager, initialData);
+
+                unsubscribeFromData = dataManager.onDataUpdate((data) => {
+                    if (currentAppInstance) {
+                        currentAppInstance.handleDataUpdate(data);
+                    }
+                });
+            }
+        };
+        
+        // --- FIRESTORE DATA MANAGER ---
+        class FirestoreDataManager {
+            constructor(userId) {
+                this.userId = userId;
+                this.docRef = doc(db, "users", this.userId);
+            }
+
+            async loadInitialData() {
+                try {
+                    const docSnap = await getDoc(this.docRef);
+                    if (docSnap.exists()) {
+                        return docSnap.data();
+                    } else {
+                        const defaultData = { tasks: {}, rsoShifts: {}, subPlans: {}, notes: '', customRoutines: {} };
+                        await setDoc(this.docRef, defaultData);
+                        return defaultData;
+                    }
+                } catch (error) {
+                    console.error("Error loading initial data:", error);
+                    return { tasks: {}, rsoShifts: {}, subPlans: {}, notes: '', customRoutines: {} };
+                }
+            }
+
+            saveData(data) {
+                return setDoc(this.docRef, data, { merge: true });
+            }
+
+            onDataUpdate(callback) {
+                return onSnapshot(this.docRef, (doc) => {
+                    if (doc.exists()) {
+                        callback(doc.data());
+                    }
+                });
+            }
+        }
+
+
+        // Encapsulates all application logic
+        class PersonalAssistantApp {
+            constructor(userId, username, dataManager, initialData) {
+                this.userId = userId;
+                this.username = username;
+                this.dataManager = dataManager;
+
+                this.tasks = initialData.tasks || {};
+                this.rsoShifts = initialData.rsoShifts || {};
+                this.subPlans = initialData.subPlans || {};
+                this.customRoutines = initialData.customRoutines || {};
+                this.notes = initialData.notes || '';
+
+                this.currentDate = new Date();
+                this.viewingDate = new Date();
+                this.currentTime = new Date();
+                this.lastCheckMinute = new Date().getMinutes();
+
+                this.defaultWeekdayRoutine = [
+                    {id: "wake", title: "Wake up", time: "05:55", duration: 5, category: "personal"},
+                    {id: "gym", title: "Gym", time: "06:30", duration: 85, category: "personal"},
+                    {id: "clock_in", title: "Clock In", time: "08:00", duration: 1, category: "work", isMandatory: true},
+                    {id: "session01", title: "Session 01", time: "08:01", duration: 299, category: "work", isLongDuration: true},
+                    {id: "begin_meal", title: "Begin Meal", time: "13:00", duration: 1, category: "personal", isMandatory: true},
+                    {id: "lunch", title: "Lunch Break", time: "13:01", duration: 29, category: "personal"},
+                    {id: "end_meal", title: "End Meal", time: "13:30", duration: 1, category: "personal", isMandatory: true},
+                    {id: "session02", title: "Session 02", time: "13:31", duration: 179, category: "work", isLongDuration: true},
+                    {id: "clock_out", title: "Clock Out", time: "16:30", duration: 1, category: "work", isMandatory: true},
+                    {id: "recreation", title: "Pickleball/Jog", time: "16:40", duration: 80, category: "personal"},
+                    {id: "bath", title: "Complete bath", time: "18:30", duration: 30, category: "personal"},
+                    {id: "dinner", title: "Dinner time", time: "18:35", duration: 75, category: "personal"},
+                    {id: "gaming", title: "PlayStation/Lego time", time: "20:00", duration: 90, category: "personal"},
+                    {id: "planning", title: "Plan next day", time: "21:30", duration: 30, category: "personal"}
+                ];
+
+                this.currentDayTasks = [];
+                this.initUI();
+            }
+
+            initUI() {
+                this.setupEventListeners();
+                this.loadTodaysTasks();
+                this.updateDateDisplay();
+                this.renderTasks();
+                this.updateRSODisplay();
+                this.loadNotesContent();
+                
+                this.updateTime();
+                this.timeInterval = setInterval(() => this.updateTime(), 1000);
+                this.taskInterval = setInterval(() => this.checkTaskTransitions(), 1000); 
+                
+                this.loadTheme();
+            }
+
+            setupEventListeners() {
+                document.getElementById('themeToggle')?.addEventListener('click', () => this.toggleTheme());
+                document.getElementById('prevDay')?.addEventListener('click', () => this.changeDate(-1));
+                document.getElementById('todayBtn')?.addEventListener('click', () => this.goToToday());
+                document.getElementById('nextDay')?.addEventListener('click', () => this.changeDate(1));
+                document.getElementById('addCustomTask')?.addEventListener('click', () => this.openAddTaskModal());
+                document.getElementById('saveTask')?.addEventListener('click', () => this.saveCustomTask());
+                document.getElementById('addRSOShift')?.addEventListener('click', () => this.openAddRSOModal());
+                document.getElementById('saveRSOShift')?.addEventListener('click', () => this.saveRSOShift());
+                document.getElementById('addSubTask')?.addEventListener('click', () => this.addSubTask());
+                document.getElementById('saveSubPlan')?.addEventListener('click', () => this.saveSubPlan());
+                document.getElementById('saveNotes')?.addEventListener('click', () => this.saveNotes());
+
+                document.querySelectorAll('.shift-type').forEach(shiftEl => {
+                    shiftEl.addEventListener('click', (e) => this.handleShiftTypeClick(e.currentTarget));
+                });
+                
+                document.querySelectorAll('.modal-close').forEach(btn => btn.addEventListener('click', (e) => this.closeModal(e.target.closest('.modal'))));
+                document.querySelectorAll('.modal').forEach(modal => modal.addEventListener('click', (e) => { if (e.target === modal) this.closeModal(modal); }));
+
+                const mainGrid = document.querySelector('.task-management-grid');
+                mainGrid.addEventListener('dblclick', (e) => this.handleTaskDoubleClick(e));
+                mainGrid.addEventListener('dragstart', (e) => this.handleDragStart(e));
+                mainGrid.addEventListener('dragend', (e) => this.handleDragEnd(e));
+                mainGrid.addEventListener('dragover', (e) => this.handleDragOver(e));
+                mainGrid.addEventListener('dragenter', (e) => this.handleDragEnter(e));
+                mainGrid.addEventListener('dragleave', (e) => this.handleDragLeave(e));
+                mainGrid.addEventListener('drop', (e) => this.handleDrop(e));
+                mainGrid.addEventListener('click', (e) => {
+                    if (e.target.closest('.delete-task-btn')) {
+                        this.deleteTask(e.target.closest('.task-item').dataset.taskId);
+                    }
+                });
+                
+                document.getElementById('rsoShiftDisplay').addEventListener('click', (e) => {
+                    if (e.target.classList.contains('delete-shift-btn')) {
+                        this.deleteRSOShift(e.target.dataset.shiftId);
+                    }
+                });
+            }
+            
+            handleDragStart(e) {
+                if (e.target.classList.contains('task-item')) {
+                    e.target.classList.add('dragging');
+                    e.dataTransfer.setData('text/plain', e.target.dataset.taskId);
+                    e.dataTransfer.effectAllowed = 'move';
+                }
+            }
+
+            handleDragEnd(e) {
+                if (e.target.classList.contains('task-item')) {
+                    e.target.classList.remove('dragging');
+                }
+            }
+
+            handleDragOver(e) {
+                e.preventDefault(); 
+            }
+            
+            handleDragEnter(e) {
+                const dropZone = e.target.closest('.task-list');
+                if (dropZone) {
+                    dropZone.classList.add('drag-over');
+                }
+            }
+
+            handleDragLeave(e) {
+                 const dropZone = e.target.closest('.task-list');
+                 if (dropZone) {
+                    dropZone.classList.remove('drag-over');
+                 }
+            }
+
+            handleDrop(e) {
+                e.preventDefault();
+                const dropZone = e.target.closest('.task-list');
+                if (!dropZone) return;
+
+                dropZone.classList.remove('drag-over');
+                const taskId = e.dataTransfer.getData('text/plain');
+                const newStatus = dropZone.dataset.status;
+
+                const task = this.currentDayTasks.find(t => t.id === taskId);
+                if (task && task.status !== newStatus) {
+                    task.status = newStatus;
+
+                    if (newStatus === 'done') {
+                        this.triggerConfetti();
+                        task.completedAt = new Date().toISOString();
+                    }
+                    
+                    this.updateAndSaveTask(task);
+                }
+            }
+            
+            triggerConfetti() {
+                confetti({
+                    particleCount: 100,
+                    spread: 70,
+                    origin: { y: 0.6 }
+                });
+            }
+
+            handleTaskDoubleClick(event) {
+                const taskElement = event.target.closest('.task-item');
+                if (taskElement && taskElement.dataset.taskId) {
+                    event.preventDefault();
+                    this.openEditTaskModal(taskElement.dataset.taskId);
+                }
+            }
+
+            updateTime() {
+                this.currentTime = new Date();
+                const timeString = this.currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                document.getElementById('currentTime').textContent = timeString;
+                this.updateCurrentTaskIndicator();
+            }
+
+            checkTaskTransitions() {
+                if (this.isToday(this.viewingDate)) {
+                    const now = new Date();
+                    const minuteChanged = now.getMinutes() !== this.lastCheckMinute;
+                    
+                    if (minuteChanged) {
+                        const changed = this.updateTaskStatuses();
+                        this.lastCheckMinute = now.getMinutes();
+                        if (changed) this.renderTasks();
+                    } else {
+                        this.updateActiveTaskTimers();
+                    }
+                }
+            }
+            
+            loadTodaysTasks() {
+                const dateKey = this.formatDateKey(this.viewingDate);
+                const dayOfWeek = this.viewingDate.getDay();
+                
+                const savedTasksForDay = (this.tasks[dateKey] || []).filter(t => !t.deleted);
+                const existingTaskIds = new Set(savedTasksForDay.map(t => t.id));
+
+                let routineTasks = [];
+                if (dayOfWeek >= 1 && dayOfWeek <= 5) { 
+                    const routineTemplate = this.customRoutines[dateKey] || this.defaultWeekdayRoutine;
+                    routineTasks = routineTemplate
+                        .map(task => ({
+                            ...task,
+                            id: `${dateKey}_${task.id}`,
+                            date: dateKey,
+                            status: 'todo',
+                            isRoutine: true,
+                            endTime: task.endTime || this.formatTime(new Date(this.parseTime(task.time).getTime() + task.duration * 60000))
+                        }))
+                        .filter(task => !existingTaskIds.has(task.id));
+                }
+                
+                this.currentDayTasks = [...savedTasksForDay, ...routineTasks];
+                
+                if (this.isToday(this.viewingDate)) {
+                    this.updateTaskStatuses();
+                }
+                this.renderTasks();
+            }
+
+            updateTaskStatuses() {
+                const now = this.currentTime;
+                let statusHasChanged = false;
+                this.currentDayTasks.forEach(task => {
+                    if (task.status === 'done' || !task.time) return;
+                    const startTime = this.parseTime(task.time);
+                    
+                    if (now >= startTime && task.status === 'todo') {
+                        task.status = 'inProgress';
+                        statusHasChanged = true;
+                    }
+                });
+                return statusHasChanged;
+            }
+
+            renderTasks() {
+                const containers = {
+                    todo: document.getElementById('todoTasks'),
+                    inProgress: document.getElementById('inProgressTasks'),
+                    done: document.getElementById('doneTasks')
+                };
+                Object.values(containers).forEach(c => c.innerHTML = '');
+
+                const sortedTasks = [...this.currentDayTasks].sort((a, b) => this.parseTime(a.time) - this.parseTime(b.time));
+                
+                sortedTasks.forEach(task => {
+                    const taskElement = this.createTaskElement(task);
+                    containers[task.status]?.appendChild(taskElement);
+                });
+                
+                this.updateCounts();
+            }
+
+            createTaskElement(task) {
+                const element = document.createElement('div');
+                element.className = `task-item ${task.isLongDuration ? 'long-duration' : ''} ${task.status}`;
+                element.dataset.taskId = task.id;
+                element.draggable = true;
+
+                let subTasksHtml = '';
+                if (task.isLongDuration && this.subPlans[task.id]) {
+                    subTasksHtml = this.createSubTaskDisplay(task);
+                }
+                
+                element.innerHTML = `
+                    <button class="delete-task-btn">&times;</button>
+                    <div class="task-header">
+                        <h4 class="task-title">${task.title}</h4>
+                        <div class="task-time">${task.time} - ${task.endTime}</div>
+                    </div>
+                    <div class="task-timer-container"></div>
+                    <div class="task-meta">
+                        <span class="task-category ${task.category}">${task.category}</span>
+                        <span class="task-duration-badge">${task.duration}min</span>
+                    </div>
+                    ${subTasksHtml}
+                    ${task.isLongDuration ? `<div class="task-actions">
+                        <button class="btn btn--primary btn--sm plan-task-btn" data-task-id="${task.id}"><i class="fas fa-tasks"></i> Plan</button>
+                    </div>` : ''}
+                `;
+
+                element.querySelector('.plan-task-btn')?.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.openSubPlanModal(e.currentTarget.dataset.taskId);
+                });
+                return element;
+            }
+            
+            createSubTaskDisplay(parentTask) {
+                const subTasks = this.subPlans[parentTask.id] || [];
+                let activeSubTaskHtml = '';
+
+                if (parentTask.status === 'inProgress' && this.isToday(this.viewingDate)) {
+                    const activeSubTask = subTasks.find(sub => {
+                        if (!sub.startTime || !sub.endTime || sub.completed) return false;
+                        const now = this.currentTime;
+                        return now >= this.parseTime(sub.startTime) && now < this.parseTime(sub.endTime);
+                    });
+
+                    if (activeSubTask) {
+                        const timeLeft = this.getTimeUntilDate(this.parseTime(activeSubTask.endTime)) || 'Ending now';
+                        activeSubTaskHtml = `
+                            <div class="active-sub-task">
+                                <div class="active-sub-task-title"><i class="fas fa-play"></i> Now: ${activeSubTask.title}</div>
+                                <div class="task-timer">${timeLeft}</div>
+                            </div>`;
+                    }
+                }
+                return `<div class="sub-tasks-container">${activeSubTaskHtml}<div class="sub-task-summary">${subTasks.length} sub-tasks planned.</div></div>`;
+            }
+
+            openEditTaskModal(taskId) {
+                const task = this.currentDayTasks.find(t => t.id === taskId);
+                if (!task) return;
+
+                const modal = document.getElementById('addTaskModal');
+                modal.querySelector('.modal-header h2').textContent = 'Edit Task';
+                modal.querySelector('#saveTask').textContent = 'Save Changes';
+                modal.dataset.editingTaskId = taskId;
+
+                document.getElementById('taskTitle').value = task.title;
+                document.getElementById('taskTime').value = task.time;
+                document.getElementById('taskDuration').value = task.duration;
+                document.getElementById('taskCategory').value = task.category;
+                document.getElementById('taskPriority').value = task.priority || 'medium';
+                document.getElementById('taskNotes').value = task.notes || '';
+                
+                modal.classList.remove('hidden');
+            }
+            
+            openAddTaskModal() {
+                const modal = document.getElementById('addTaskModal');
+                modal.querySelector('.modal-header h2').textContent = 'Add Custom Task';
+                modal.querySelector('#saveTask').textContent = 'Add Task';
+                delete modal.dataset.editingTaskId;
+                
+                document.getElementById('taskTitle').value = '';
+                document.getElementById('taskTime').value = this.formatTime(new Date(this.currentTime.getTime() + 60 * 60 * 1000), false);
+                document.getElementById('taskDuration').value = 30;
+                document.getElementById('taskNotes').value = '';
+
+                modal.classList.remove('hidden');
+            }
+
+            saveCustomTask() {
+                const modal = document.getElementById('addTaskModal');
+                const editingTaskId = modal.dataset.editingTaskId;
+                
+                const data = {
+                    title: document.getElementById('taskTitle').value.trim(),
+                    time: document.getElementById('taskTime').value,
+                    duration: parseInt(document.getElementById('taskDuration').value),
+                    category: document.getElementById('taskCategory').value,
+                    priority: document.getElementById('taskPriority').value,
+                    notes: document.getElementById('taskNotes').value.trim(),
+                };
+
+                if (!data.title || !data.time) {
+                    this.showNotification('Title and time are required.', 'error');
+                    return;
+                }
+                data.endTime = this.formatTime(new Date(this.parseTime(data.time).getTime() + data.duration * 60000));
+
+                if (editingTaskId) this.updateTask(editingTaskId, data);
+                else this.createNewTask(data);
+            }
+
+            createNewTask(data) {
+                const dateKey = this.formatDateKey(this.viewingDate);
+                if (!this.tasks[dateKey]) this.tasks[dateKey] = [];
+                
+                const newTask = { ...data, id: `custom_${Date.now()}`, date: dateKey, status: 'todo' };
+                this.tasks[dateKey].push(newTask);
+                
+                this.dataManager.saveData({ tasks: this.tasks });
+            }
+
+            updateAndSaveTask(taskToUpdate) {
+                 const dateKey = this.formatDateKey(this.viewingDate);
+                 if (!this.tasks[dateKey]) this.tasks[dateKey] = [];
+                 
+                 let taskIndex = this.tasks[dateKey].findIndex(t => t.id === taskToUpdate.id);
+                 if (taskIndex !== -1) {
+                    this.tasks[dateKey][taskIndex] = taskToUpdate;
+                 } else {
+                    this.tasks[dateKey].push(taskToUpdate);
+                 }
+                 this.dataManager.saveData({ tasks: this.tasks });
+            }
+
+            updateTask(taskId, data) {
+                const task = this.currentDayTasks.find(t => t.id === taskId);
+                if (!task) return;
+                Object.assign(task, data);
+                this.updateAndSaveTask(task);
+                this.closeModal(document.getElementById('addTaskModal'));
+                this.showNotification('Task updated successfully!', 'success');
+            }
+
+            deleteTask(taskId) {
+                const task = this.currentDayTasks.find(t => t.id === taskId);
+                if (!task) return;
+
+                const dateKey = this.formatDateKey(this.viewingDate);
+                if (!this.tasks[dateKey]) this.tasks[dateKey] = [];
+                
+                if (task.isRoutine) {
+                    this.tasks[dateKey].push({ id: task.id, deleted: true });
+                } else {
+                    this.tasks[dateKey] = this.tasks[dateKey].filter(t => t.id !== taskId);
+                }
+                
+                this.dataManager.saveData({ tasks: this.tasks });
+            }
+
+            openSubPlanModal(taskId) {
+                const task = this.currentDayTasks.find(t => t.id === taskId);
+                if (!task) return;
+
+                const modal = document.getElementById('subPlanModal');
+                modal.querySelector('#subPlanTitle').textContent = `Plan: ${task.title}`;
+                modal.dataset.taskId = taskId;
+                
+                this.resetSubTaskForm();
+                this.renderSubTasks(taskId);
+                this.updateTimeAllocation(taskId, task.duration);
+                modal.classList.remove('hidden');
+            }
+
+            addSubTask() {
+                const form = document.querySelector('.sub-task-form');
+                const editingTaskId = form.dataset.editingTaskId;
+                const editingIndex = form.dataset.editingSubtaskIndex;
+
+                if (editingTaskId && editingIndex !== undefined) {
+                    this.updateSubTask(editingTaskId, editingIndex);
+                } else {
+                    this.createNewSubTask();
+                }
+            }
+
+            createNewSubTask() {
+                const modal = document.getElementById('subPlanModal');
+                const taskId = modal.dataset.taskId;
+                const subTaskData = this.getSubTaskDataFromForm();
+                if (!subTaskData) return;
+
+                if (!this.subPlans[taskId]) this.subPlans[taskId] = [];
+                this.subPlans[taskId].push({ id: `sub_${Date.now()}`, ...subTaskData });
+                
+                this.resetSubTaskForm();
+                this.renderSubTasks(taskId);
+                this.updateTimeAllocation(taskId, this.currentDayTasks.find(t => t.id === taskId).duration);
+                this.showNotification('Sub-task added!', 'success');
+            }
+            
+            updateSubTask(taskId, index) {
+                const subTaskData = this.getSubTaskDataFromForm();
+                if (!subTaskData) return;
+
+                this.subPlans[taskId][index] = { ...this.subPlans[taskId][index], ...subTaskData };
+                
+                this.resetSubTaskForm();
+                this.renderSubTasks(taskId);
+                this.updateTimeAllocation(taskId, this.currentDayTasks.find(t => t.id === taskId).duration);
+                this.showNotification('Sub-task updated!', 'success');
+            }
+            
+            renderSubTasks(taskId) {
+                const container = document.getElementById('subTasksList');
+                const subTasks = this.subPlans[taskId] || [];
+                container.innerHTML = subTasks.map((sub, index) => `
+                    <div class="sub-task-list-item">
+                        <div class="sub-task-info">
+                            <div class="sub-task-title">${sub.title}</div>
+                            <div class="sub-task-duration">
+                                ${sub.startTime && sub.endTime ? `${sub.startTime} - ${sub.endTime}` : ''} (${sub.duration}m)
+                            </div>
+                        </div>
+                        <div class="sub-task-actions">
+                            <button class="btn btn--secondary btn--sm edit-subtask-btn" data-index="${index}"><i class="fas fa-edit"></i></button>
+                            <button class="btn btn--secondary btn--sm delete-subtask-btn" data-index="${index}"><i class="fas fa-trash"></i></button>
+                        </div>
+                    </div>
+                `).join('');
+
+                container.querySelectorAll('.edit-subtask-btn').forEach(btn => btn.addEventListener('click', (e) => this.openEditSubTaskForm(taskId, e.currentTarget.dataset.index)));
+                container.querySelectorAll('.delete-subtask-btn').forEach(btn => btn.addEventListener('click', (e) => this.deleteSubTask(taskId, e.currentTarget.dataset.index)));
+            }
+            
+            openEditSubTaskForm(taskId, index) {
+                const subTask = this.subPlans[taskId]?.[index];
+                if (!subTask) return;
+
+                document.getElementById('subTaskTitle').value = subTask.title;
+                document.getElementById('subTaskDuration').value = subTask.duration;
+                document.getElementById('subTaskStartTime').value = subTask.startTime || '';
+                document.getElementById('subTaskEndTime').value = subTask.endTime || '';
+
+                const addButton = document.getElementById('addSubTask');
+                addButton.textContent = 'Update Sub-task';
+                
+                const form = document.querySelector('.sub-task-form');
+                form.dataset.editingTaskId = taskId;
+                form.dataset.editingSubtaskIndex = index;
+            }
+
+            // --- RSO Shift Methods (UPDATED) ---
+            handleShiftTypeClick(element) {
+                const shiftType = element.dataset.shift;
+                this.openAddRSOModal(shiftType);
+            }
+            openAddRSOModal(preselectedShift = null) {
+                const modal = document.getElementById('addRSOModal');
+                if (!modal) return;
+                document.getElementById('shiftDate').value = this.formatDateKey(this.viewingDate);
+                if (preselectedShift) {
+                    document.getElementById('shiftType').value = preselectedShift;
+                }
+                modal.classList.remove('hidden');
+            }
+            saveRSOShift() {
+                const dateStr = document.getElementById('shiftDate').value;
+                const shiftType = document.getElementById('shiftType').value;
+                if (!dateStr || !shiftType) return;
+
+                const parts = dateStr.split('-');
+                const selectedDate = new Date(parts[0], parseInt(parts[1], 10) - 1, parts[2]);
+                const dateKey = this.formatDateKey(selectedDate);
+
+                if (!this.rsoShifts[dateKey]) {
+                    this.rsoShifts[dateKey] = [];
+                }
+
+                if (this.rsoShifts[dateKey].some(s => s.shift === shiftType)) {
+                    this.showNotification('This shift is already scheduled for this date.', 'warning');
+                    return;
+                }
+
+                this.rsoShifts[dateKey].push({ id: `rso_${Date.now()}`, shift: shiftType });
+                this.dataManager.saveData({ rsoShifts: this.rsoShifts });
+                
+                if (dateKey === this.formatDateKey(this.viewingDate)) {
+                    this.updateRSODisplay();
+                }
+                
+                this.closeModal(document.getElementById('addRSOModal'));
+                this.showNotification(`Shift ${shiftType} added for ${dateKey}!`, 'success');
+            }
+            updateRSODisplay() {
+                const container = document.getElementById('todayRSOShiftContainer');
+                const dateKey = this.formatDateKey(this.viewingDate);
+                const shifts = this.rsoShifts[dateKey] || [];
+
+                if (shifts.length > 0) {
+                    container.innerHTML = shifts.map(shift => `
+                        <span class="rso-shift-tag">
+                            Shift ${shift.shift}
+                            <button class="delete-shift-btn" data-shift-id="${shift.id}">&times;</button>
+                        </span>
+                    `).join('');
+                } else {
+                    container.innerHTML = '<span>No RSO Shift</span>';
+                }
+            }
+            deleteRSOShift(shiftId) {
+                const dateKey = this.formatDateKey(this.viewingDate);
+                if (!this.rsoShifts[dateKey]) return;
+
+                this.rsoShifts[dateKey] = this.rsoShifts[dateKey].filter(s => s.id !== shiftId);
+
+                if (this.rsoShifts[dateKey].length === 0) {
+                    delete this.rsoShifts[dateKey];
+                }
+
+                this.dataManager.saveData({ rsoShifts: this.rsoShifts });
+            }
+
+            // --- Helper and Utility Functions ---
+            updateDateDisplay() {
+                const dateString = this.viewingDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+                document.getElementById('currentDate').textContent = dateString;
+                document.getElementById('viewingDate').textContent = this.isToday(this.viewingDate) ? "Today's Schedule" : `Viewing: ${dateString}`;
+            }
+            updateCurrentTaskIndicator() {
+                const indicator = document.getElementById('currentTask');
+                if (this.isToday(this.viewingDate)) {
+                    const currentTask = this.currentDayTasks.find(t => t.status === 'inProgress');
+                    if (currentTask) {
+                        indicator.textContent = `Currently: ${currentTask.title}`;
+                        indicator.style.display = 'block';
+                        return;
+                    }
+                }
+                indicator.style.display = 'none';
+            }
+            updateActiveTaskTimers() {
+                document.querySelectorAll('.task-item.in-progress').forEach(el => {
+                    const task = this.currentDayTasks.find(t => t.id === el.dataset.taskId);
+                    if (!task) return;
+
+                    const parentTimerEl = el.querySelector('.task-timer-container');
+                    if (parentTimerEl) parentTimerEl.textContent = this.getTimeUntilDate(this.parseTime(task.endTime)) || 'Ending now';
+
+                    const activeSubTaskTimerEl = el.querySelector('.active-sub-task .task-timer');
+                    if (activeSubTaskTimerEl) {
+                        const activeSubTask = (this.subPlans[task.id] || []).find(sub => {
+                             if (!sub.startTime || !sub.endTime || sub.completed) return false;
+                             const now = this.currentTime;
+                             return now >= this.parseTime(sub.startTime) && now < this.parseTime(sub.endTime);
+                        });
+                        if(activeSubTask) activeSubTaskTimerEl.textContent = this.getTimeUntilDate(this.parseTime(activeSubTask.endTime)) || 'Ending now';
+                    }
+                });
+            }
+            updateCounts() {
+                const todo = this.currentDayTasks.filter(t => t.status === 'todo').length;
+                const inProgress = this.currentDayTasks.filter(t => t.status === 'inProgress').length;
+                const done = this.currentDayTasks.filter(t => t.status === 'done').length;
+                document.getElementById('todoCount').textContent = todo;
+                document.getElementById('inProgressCount').textContent = inProgress;
+                document.getElementById('doneCount').textContent = done;
+                document.getElementById('completionPercentage').textContent = `${this.currentDayTasks.length > 0 ? Math.round((done / this.currentDayTasks.length) * 100) : 0}%`;
+            }
+            changeDate(days) { this.viewingDate.setDate(this.viewingDate.getDate() + days); this.refreshView(); }
+            goToToday() { this.viewingDate = new Date(); this.refreshView(); }
+            refreshView() { this.updateDateDisplay(); this.loadTodaysTasks(); this.renderTasks(); this.updateRSODisplay(); }
+            parseTime(timeStr, baseDate = this.viewingDate) { const [h, m] = timeStr.split(':').map(Number); const d = new Date(baseDate); d.setHours(h, m, 0, 0); return d; }
+            formatTime(date, sec = true) { return date.toLocaleTimeString('en-US', { hour12: false }).substring(0, sec ? 8 : 5); }
+            formatDateKey(date) { return date.toISOString().split('T')[0]; }
+            isToday(date) { return date.toDateString() === new Date().toDateString(); }
+            getTimeUntilDate(endDate) {
+                const diff = endDate - this.currentTime;
+                if (diff <= 0) return null;
+                const h = Math.floor(diff / 3600000);
+                const m = Math.floor((diff % 3600000) / 60000);
+                const s = Math.floor((diff % 60000) / 1000);
+                return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+            }
+            closeModal(modal) { modal?.classList.add('hidden'); }
+            showNotification(message, type = 'info') {
+                const notification = document.createElement('div');
+                notification.className = `notification notification--${type}`;
+                notification.style.cssText = `position:fixed;top:20px;right:20px;padding:12px 16px;border-radius:8px;color:white;font-weight:500;z-index:1001;box-shadow:var(--shadow-lg);background-color:${{success:'#2EBA6B',error:'#C0152F',info:'#3B82F6'}[type]||'#3B82F6'};animation:slideIn 0.3s ease-out;`;
+                notification.textContent = message;
+                document.body.appendChild(notification);
+                setTimeout(() => { notification.style.animation = 'slideOut 0.3s ease-out'; setTimeout(() => notification.remove(), 300); }, 4000);
+            }
+            
+            toggleTheme() {
+                const newTheme = document.body.getAttribute('data-color-scheme') === 'dark' ? 'light' : 'dark';
+                document.body.setAttribute('data-color-scheme', newTheme);
+                localStorage.setItem('theme', newTheme);
+                document.querySelector('#themeToggle i').className = newTheme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+            }
+            loadTheme() {
+                const theme = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+                document.body.setAttribute('data-color-scheme', theme);
+                document.querySelector('#themeToggle i').className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+            }
+            saveNotes() { this.notes = document.getElementById('quickNotes').value; this.dataManager.saveData({ notes: this.notes }); this.showNotification('Notes saved!', 'success'); }
+            loadNotesContent() { document.getElementById('quickNotes').value = this.notes; }
+            
+            saveSubPlan() { this.dataManager.saveData({ subPlans: this.subPlans }); this.closeModal(document.getElementById('subPlanModal')); }
+            deleteSubTask(taskId, index) {
+                this.subPlans[taskId].splice(index, 1);
+                this.renderSubTasks(taskId);
+                this.updateTimeAllocation(taskId, this.currentDayTasks.find(t => t.id === taskId).duration);
+            }
+            getSubTaskDataFromForm() {
+                const title = document.getElementById('subTaskTitle').value.trim();
+                if (!title) { this.showNotification('Sub-task title is required.', 'error'); return null; }
+                const startTime = document.getElementById('subTaskStartTime').value || null;
+                const endTime = document.getElementById('subTaskEndTime').value || null;
+                let duration = parseInt(document.getElementById('subTaskDuration').value);
+                if (startTime && endTime) {
+                    duration = (this.parseTime(endTime) - this.parseTime(startTime)) / 60000;
+                    if (duration < 0) { this.showNotification('End time must be after start time.', 'error'); return null; }
+                }
+                return { title, duration, startTime, endTime, completed: false };
+            }
+            resetSubTaskForm() {
+                const form = document.querySelector('.sub-task-form');
+                form.reset();
+                document.getElementById('subTaskDuration').value = 30;
+                document.getElementById('addSubTask').textContent = 'Add Sub-task';
+                delete form.dataset.editingTaskId;
+                delete form.dataset.editingSubtaskIndex;
+            }
+            updateTimeAllocation(taskId, totalDuration) {
+                const subTasks = this.subPlans[taskId] || [];
+                const allocatedTime = subTasks.reduce((sum, sub) => sum + sub.duration, 0);
+                document.getElementById('remainingTime').textContent = `${totalDuration - allocatedTime} minutes remaining`;
+                document.getElementById('timeAllocationBar').innerHTML = subTasks.map((sub, i) => `<div class="allocation-segment" style="width:${(sub.duration/totalDuration)*100}%;background-color:${['#1FB8CD','#FFC185','#B4413C'][i%3]}"></div>`).join('');
+            }
+            
+            handleDataUpdate(newData) {
+                this.tasks = newData.tasks || {};
+                this.rsoShifts = newData.rsoShifts || {};
+                this.subPlans = newData.subPlans || {};
+                this.notes = newData.notes || '';
+                this.customRoutines = newData.customRoutines || {};
+
+                this.refreshView();
+                this.loadNotesContent();
+            }
+
+            destroy() {
+                clearInterval(this.timeInterval);
+                clearInterval(this.taskInterval);
+            }
+        }
+
+        // Initialize Auth Manager
+        document.addEventListener('DOMContentLoaded', () => {
+            const style = document.createElement('style');
+            style.textContent = `@keyframes slideIn{from{transform:translateX(100%)}to{transform:translateX(0)}}@keyframes slideOut{from{transform:translateX(0)}to{transform:translateX(100%)}}`;
+            document.head.appendChild(style);
+            authManager.init();
+        });
+    </script>
+</body>
+</html>
