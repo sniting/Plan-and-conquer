@@ -296,7 +296,7 @@
         .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-12); margin-bottom: var(--space-12); }
 
         /* Utility classes */
-        .hidden { display: none; }
+        .hidden { display: none !important; }
 
         /* Accessibility */
         :focus-visible { outline: var(--focus-outline); outline-offset: 2px; }
@@ -371,6 +371,30 @@
             margin-left: .25em;
         }
 
+        /* Loading Indicator */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(255, 255, 255, 0.3);
+            border-top-color: var(--color-primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
 
         /* Application-specific styles */
         .app-container { min-height: 100vh; background-color: var(--color-background); }
@@ -520,7 +544,12 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 </head>
 <body>
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay hidden">
+        <div class="loading-spinner"></div>
+    </div>
     
+    <!-- Login Container -->
     <div id="login-container">
         <div class="login-box">
             <h1><i class="fas fa-calendar-check"></i> Plan & Conquer</h1>
@@ -546,6 +575,7 @@
         </div>
     </div>
 
+    <!-- Main Application Container -->
     <div class="app-container hidden">
         <!-- Header with Real-time Clock -->
         <header class="app-header">
@@ -852,6 +882,12 @@
         };
         // ===================================================================================
 
+        // Debug logging helper
+        const DEBUG = true;
+        const log = (...args) => {
+            if (DEBUG) console.log('[PlanConquer]', ...args);
+        };
+
         // Import Firebase modules
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
         import { 
@@ -882,6 +918,17 @@
         let currentAppInstance = null;
         let unsubscribeFromData = null; 
 
+        // Loading overlay functions
+        const showLoading = () => {
+            const overlay = document.getElementById('loadingOverlay');
+            if (overlay) overlay.classList.remove('hidden');
+        };
+
+        const hideLoading = () => {
+            const overlay = document.getElementById('loadingOverlay');
+            if (overlay) overlay.classList.add('hidden');
+        };
+
         // --- AUTHENTICATION MANAGER ---
         const authManager = {
             loginContainer: document.getElementById('login-container'),
@@ -895,18 +942,47 @@
             loginError: document.getElementById('login-error'),
             
             init() {
+                log('AuthManager initializing...');
+                
+                // Add event listeners
                 this.loginBtn.addEventListener('click', () => this.handleLogin());
                 this.googleLoginBtn.addEventListener('click', () => this.handleGoogleLogin());
                 this.logoutBtn.addEventListener('click', () => this.handleLogout());
+                
+                // Add Enter key support for login
+                this.passwordInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') this.handleLogin();
+                });
+                this.usernameInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') this.passwordInput.focus();
+                });
 
+                // Monitor auth state changes
                 onAuthStateChanged(auth, async (user) => {
+                    log('Auth state changed:', user ? 'User logged in' : 'User logged out');
+                    
                     if (user) {
-                        const username = user.displayName || user.email.split('@')[0];
-                        this.showApp(username);
-                        await this.startApp(user.uid, username);
+                        try {
+                            showLoading();
+                            const username = user.displayName || user.email.split('@')[0];
+                            log('User authenticated:', username);
+                            
+                            // Show app UI immediately
+                            this.showApp(username);
+                            
+                            // Then start the app
+                            await this.startApp(user.uid, username);
+                            
+                        } catch (error) {
+                            console.error('Error during app startup:', error);
+                            alert('There was an error loading the app. Please refresh the page.');
+                        } finally {
+                            hideLoading();
+                        }
                     } else {
                         this.showLogin();
                         if (currentAppInstance) {
+                            log('Destroying current app instance');
                             currentAppInstance.destroy();
                             currentAppInstance = null;
                         }
@@ -923,6 +999,7 @@
                     this.loginError.textContent = 'A valid email is required and password must be at least 6 characters.';
                     return;
                 }
+                
                 this.loginError.textContent = '';
                 this.loginBtn.disabled = true;
                 this.loginBtn.textContent = 'Logging in...';
@@ -931,12 +1008,18 @@
                 
                 try {
                     await setPersistence(auth, persistence);
+                    log('Persistence set:', rememberMe ? 'local' : 'session');
                     
                     try {
+                        // Try to sign in
                         await signInWithEmailAndPassword(auth, email, password);
+                        log('User signed in successfully');
                     } catch (error) {
                         if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
+                            // Create new account
+                            log('Creating new account...');
                             await createUserWithEmailAndPassword(auth, email, password);
+                            log('New account created successfully');
                         } else {
                             throw error;
                         }
@@ -953,45 +1036,71 @@
             async handleGoogleLogin() {
                 const provider = new GoogleAuthProvider();
                 try {
+                    showLoading();
                     await signInWithPopup(auth, provider);
+                    log('Google sign-in successful');
                 } catch (error) {
                     console.error("Google Sign-In Error:", error);
                     this.loginError.textContent = "Could not sign in with Google. Please try again.";
+                } finally {
+                    hideLoading();
                 }
             },
 
             async handleLogout() {
+                log('Logging out...');
                 if (unsubscribeFromData) {
                     unsubscribeFromData();
                     unsubscribeFromData = null;
                 }
                 await signOut(auth);
+                log('Logged out successfully');
             },
 
             showLogin() {
+                log('Showing login screen');
                 this.loginContainer.classList.remove('hidden');
                 this.appContainer.classList.add('hidden');
             },
 
             showApp(username) {
+                log('Showing app for user:', username);
                 this.loginContainer.classList.add('hidden');
                 this.appContainer.classList.remove('hidden');
-                document.getElementById('usernameDisplay').textContent = username;
+                
+                // Update username display
+                const usernameDisplay = document.getElementById('usernameDisplay');
+                if (usernameDisplay) {
+                    usernameDisplay.textContent = username;
+                }
             },
 
             async startApp(userId, username) {
-                if (currentAppInstance) return;
+                if (currentAppInstance) {
+                    log('App instance already exists, skipping initialization');
+                    return;
+                }
 
-                const dataManager = new FirestoreDataManager(userId);
-                const initialData = await dataManager.loadInitialData();
-                
-                currentAppInstance = new PersonalAssistantApp(userId, username, dataManager, initialData);
+                try {
+                    log('Starting app for user:', userId);
+                    
+                    const dataManager = new FirestoreDataManager(userId);
+                    const initialData = await dataManager.loadInitialData();
+                    log('Initial data loaded:', initialData);
+                    
+                    currentAppInstance = new PersonalAssistantApp(userId, username, dataManager, initialData);
+                    log('App instance created successfully');
 
-                unsubscribeFromData = dataManager.onDataUpdate((data) => {
-                    if (currentAppInstance) {
-                        currentAppInstance.handleDataUpdate(data);
-                    }
-                });
+                    unsubscribeFromData = dataManager.onDataUpdate((data) => {
+                        if (currentAppInstance) {
+                            currentAppInstance.handleDataUpdate(data);
+                        }
+                    });
+                    
+                } catch (error) {
+                    console.error('Error starting app:', error);
+                    throw error;
+                }
             }
         };
         
@@ -1000,41 +1109,63 @@
             constructor(userId) {
                 this.userId = userId;
                 this.docRef = doc(db, "users", this.userId);
+                log('DataManager created for user:', userId);
             }
 
             async loadInitialData() {
                 try {
+                    log('Loading initial data from Firestore...');
                     const docSnap = await getDoc(this.docRef);
+                    
                     if (docSnap.exists()) {
+                        log('Document exists, returning data');
                         return docSnap.data();
                     } else {
-                        const defaultData = { tasks: {}, rsoShifts: {}, subPlans: {}, notes: '', customRoutines: {} };
+                        log('Document does not exist, creating default data');
+                        const defaultData = { 
+                            tasks: {}, 
+                            rsoShifts: {}, 
+                            subPlans: {}, 
+                            notes: '', 
+                            customRoutines: {} 
+                        };
                         await setDoc(this.docRef, defaultData);
                         return defaultData;
                     }
                 } catch (error) {
                     console.error("Error loading initial data:", error);
-                    return { tasks: {}, rsoShifts: {}, subPlans: {}, notes: '', customRoutines: {} };
+                    // Return default data on error
+                    return { 
+                        tasks: {}, 
+                        rsoShifts: {}, 
+                        subPlans: {}, 
+                        notes: '', 
+                        customRoutines: {} 
+                    };
                 }
             }
 
             saveData(data) {
+                log('Saving data to Firestore:', data);
                 return setDoc(this.docRef, data, { merge: true });
             }
 
             onDataUpdate(callback) {
+                log('Setting up real-time data listener');
                 return onSnapshot(this.docRef, (doc) => {
                     if (doc.exists()) {
+                        log('Data update received');
                         callback(doc.data());
                     }
                 });
             }
         }
 
-
-        // Encapsulates all application logic
+        // Personal Assistant App Class
         class PersonalAssistantApp {
             constructor(userId, username, dataManager, initialData) {
+                log('Creating PersonalAssistantApp instance');
+                
                 this.userId = userId;
                 this.username = username;
                 this.dataManager = dataManager;
@@ -1068,65 +1199,112 @@
                 ];
 
                 this.currentDayTasks = [];
-                this.initUI();
+                
+                try {
+                    this.initUI();
+                    log('PersonalAssistantApp initialized successfully');
+                } catch (error) {
+                    console.error('Error initializing UI:', error);
+                    throw error;
+                }
             }
 
             initUI() {
+                log('Initializing UI components');
+                
+                // Setup event listeners first
                 this.setupEventListeners();
+                
+                // Load initial data
                 this.loadTodaysTasks();
                 this.updateDateDisplay();
                 this.renderTasks();
                 this.updateRSODisplay();
                 this.loadNotesContent();
                 
+                // Start time updates
                 this.updateTime();
                 this.timeInterval = setInterval(() => this.updateTime(), 1000);
                 this.taskInterval = setInterval(() => this.checkTaskTransitions(), 1000); 
                 
+                // Load theme
                 this.loadTheme();
+                
+                log('UI initialized');
             }
 
             setupEventListeners() {
-                document.getElementById('themeToggle')?.addEventListener('click', () => this.toggleTheme());
-                document.getElementById('prevDay')?.addEventListener('click', () => this.changeDate(-1));
-                document.getElementById('todayBtn')?.addEventListener('click', () => this.goToToday());
-                document.getElementById('nextDay')?.addEventListener('click', () => this.changeDate(1));
-                document.getElementById('addCustomTask')?.addEventListener('click', () => this.openAddTaskModal());
-                document.getElementById('saveTask')?.addEventListener('click', () => this.saveCustomTask());
-                document.getElementById('addRSOShift')?.addEventListener('click', () => this.openAddRSOModal());
-                document.getElementById('saveRSOShift')?.addEventListener('click', () => this.saveRSOShift());
-                document.getElementById('addSubTask')?.addEventListener('click', () => this.addSubTask());
-                document.getElementById('saveSubPlan')?.addEventListener('click', () => this.saveSubPlan());
-                document.getElementById('saveNotes')?.addEventListener('click', () => this.saveNotes());
+                log('Setting up event listeners');
+                
+                // Check if elements exist before adding listeners
+                const addListener = (id, event, handler) => {
+                    const element = document.getElementById(id);
+                    if (element) {
+                        element.addEventListener(event, handler.bind(this));
+                    } else {
+                        console.warn(`Element with id '${id}' not found`);
+                    }
+                };
 
+                addListener('themeToggle', 'click', () => this.toggleTheme());
+                addListener('prevDay', 'click', () => this.changeDate(-1));
+                addListener('todayBtn', 'click', () => this.goToToday());
+                addListener('nextDay', 'click', () => this.changeDate(1));
+                addListener('addCustomTask', 'click', () => this.openAddTaskModal());
+                addListener('saveTask', 'click', () => this.saveCustomTask());
+                addListener('addRSOShift', 'click', () => this.openAddRSOModal());
+                addListener('saveRSOShift', 'click', () => this.saveRSOShift());
+                addListener('addSubTask', 'click', () => this.addSubTask());
+                addListener('saveSubPlan', 'click', () => this.saveSubPlan());
+                addListener('saveNotes', 'click', () => this.saveNotes());
+
+                // Shift type clicks
                 document.querySelectorAll('.shift-type').forEach(shiftEl => {
                     shiftEl.addEventListener('click', (e) => this.handleShiftTypeClick(e.currentTarget));
                 });
                 
-                document.querySelectorAll('.modal-close').forEach(btn => btn.addEventListener('click', (e) => this.closeModal(e.target.closest('.modal'))));
-                document.querySelectorAll('.modal').forEach(modal => modal.addEventListener('click', (e) => { if (e.target === modal) this.closeModal(modal); }));
-
-                const mainGrid = document.querySelector('.task-management-grid');
-                mainGrid.addEventListener('dblclick', (e) => this.handleTaskDoubleClick(e));
-                mainGrid.addEventListener('dragstart', (e) => this.handleDragStart(e));
-                mainGrid.addEventListener('dragend', (e) => this.handleDragEnd(e));
-                mainGrid.addEventListener('dragover', (e) => this.handleDragOver(e));
-                mainGrid.addEventListener('dragenter', (e) => this.handleDragEnter(e));
-                mainGrid.addEventListener('dragleave', (e) => this.handleDragLeave(e));
-                mainGrid.addEventListener('drop', (e) => this.handleDrop(e));
-                mainGrid.addEventListener('click', (e) => {
-                    if (e.target.closest('.delete-task-btn')) {
-                        this.deleteTask(e.target.closest('.task-item').dataset.taskId);
-                    }
+                // Modal close buttons
+                document.querySelectorAll('.modal-close').forEach(btn => {
+                    btn.addEventListener('click', (e) => this.closeModal(e.target.closest('.modal')));
                 });
                 
-                document.getElementById('rsoShiftDisplay').addEventListener('click', (e) => {
-                    if (e.target.classList.contains('delete-shift-btn')) {
-                        this.deleteRSOShift(e.target.dataset.shiftId);
-                    }
+                // Modal background clicks
+                document.querySelectorAll('.modal').forEach(modal => {
+                    modal.addEventListener('click', (e) => { 
+                        if (e.target === modal) this.closeModal(modal); 
+                    });
                 });
+
+                // Task management grid events
+                const mainGrid = document.querySelector('.task-management-grid');
+                if (mainGrid) {
+                    mainGrid.addEventListener('dblclick', (e) => this.handleTaskDoubleClick(e));
+                    mainGrid.addEventListener('dragstart', (e) => this.handleDragStart(e));
+                    mainGrid.addEventListener('dragend', (e) => this.handleDragEnd(e));
+                    mainGrid.addEventListener('dragover', (e) => this.handleDragOver(e));
+                    mainGrid.addEventListener('dragenter', (e) => this.handleDragEnter(e));
+                    mainGrid.addEventListener('dragleave', (e) => this.handleDragLeave(e));
+                    mainGrid.addEventListener('drop', (e) => this.handleDrop(e));
+                    mainGrid.addEventListener('click', (e) => {
+                        if (e.target.closest('.delete-task-btn')) {
+                            const taskItem = e.target.closest('.task-item');
+                            if (taskItem) this.deleteTask(taskItem.dataset.taskId);
+                        }
+                    });
+                }
+                
+                // RSO shift display events
+                const rsoShiftDisplay = document.getElementById('rsoShiftDisplay');
+                if (rsoShiftDisplay) {
+                    rsoShiftDisplay.addEventListener('click', (e) => {
+                        if (e.target.classList.contains('delete-shift-btn')) {
+                            this.deleteRSOShift(e.target.dataset.shiftId);
+                        }
+                    });
+                }
             }
             
+            // [Rest of the PersonalAssistantApp methods remain the same...]
             handleDragStart(e) {
                 if (e.target.classList.contains('task-item')) {
                     e.target.classList.add('dragging');
@@ -1182,11 +1360,13 @@
             }
             
             triggerConfetti() {
-                confetti({
-                    particleCount: 100,
-                    spread: 70,
-                    origin: { y: 0.6 }
-                });
+                if (typeof confetti === 'function') {
+                    confetti({
+                        particleCount: 100,
+                        spread: 70,
+                        origin: { y: 0.6 }
+                    });
+                }
             }
 
             handleTaskDoubleClick(event) {
@@ -1199,8 +1379,13 @@
 
             updateTime() {
                 this.currentTime = new Date();
-                const timeString = this.currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-                document.getElementById('currentTime').textContent = timeString;
+                const timeString = this.currentTime.toLocaleTimeString('en-US', { 
+                    hour: '2-digit', 
+                    minute: '2-digit', 
+                    second: '2-digit' 
+                });
+                const timeElement = document.getElementById('currentTime');
+                if (timeElement) timeElement.textContent = timeString;
                 this.updateCurrentTaskIndicator();
             }
 
@@ -1270,13 +1455,20 @@
                     inProgress: document.getElementById('inProgressTasks'),
                     done: document.getElementById('doneTasks')
                 };
-                Object.values(containers).forEach(c => c.innerHTML = '');
+                
+                Object.values(containers).forEach(c => {
+                    if (c) c.innerHTML = '';
+                });
 
-                const sortedTasks = [...this.currentDayTasks].sort((a, b) => this.parseTime(a.time) - this.parseTime(b.time));
+                const sortedTasks = [...this.currentDayTasks].sort((a, b) => 
+                    this.parseTime(a.time) - this.parseTime(b.time)
+                );
                 
                 sortedTasks.forEach(task => {
                     const taskElement = this.createTaskElement(task);
-                    containers[task.status]?.appendChild(taskElement);
+                    if (containers[task.status]) {
+                        containers[task.status].appendChild(taskElement);
+                    }
                 });
                 
                 this.updateCounts();
@@ -1306,14 +1498,20 @@
                     </div>
                     ${subTasksHtml}
                     ${task.isLongDuration ? `<div class="task-actions">
-                        <button class="btn btn--primary btn--sm plan-task-btn" data-task-id="${task.id}"><i class="fas fa-tasks"></i> Plan</button>
+                        <button class="btn btn--primary btn--sm plan-task-btn" data-task-id="${task.id}">
+                            <i class="fas fa-tasks"></i> Plan
+                        </button>
                     </div>` : ''}
                 `;
 
-                element.querySelector('.plan-task-btn')?.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    this.openSubPlanModal(e.currentTarget.dataset.taskId);
-                });
+                const planBtn = element.querySelector('.plan-task-btn');
+                if (planBtn) {
+                    planBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        this.openSubPlanModal(e.currentTarget.dataset.taskId);
+                    });
+                }
+                
                 return element;
             }
             
@@ -1332,12 +1530,19 @@
                         const timeLeft = this.getTimeUntilDate(this.parseTime(activeSubTask.endTime)) || 'Ending now';
                         activeSubTaskHtml = `
                             <div class="active-sub-task">
-                                <div class="active-sub-task-title"><i class="fas fa-play"></i> Now: ${activeSubTask.title}</div>
+                                <div class="active-sub-task-title">
+                                    <i class="fas fa-play"></i> Now: ${activeSubTask.title}
+                                </div>
                                 <div class="task-timer">${timeLeft}</div>
                             </div>`;
                     }
                 }
-                return `<div class="sub-tasks-container">${activeSubTaskHtml}<div class="sub-task-summary">${subTasks.length} sub-tasks planned.</div></div>`;
+                
+                return `
+                    <div class="sub-tasks-container">
+                        ${activeSubTaskHtml}
+                        <div class="sub-task-summary">${subTasks.length} sub-tasks planned.</div>
+                    </div>`;
             }
 
             openEditTaskModal(taskId) {
@@ -1345,8 +1550,11 @@
                 if (!task) return;
 
                 const modal = document.getElementById('addTaskModal');
-                modal.querySelector('.modal-header h2').textContent = 'Edit Task';
-                modal.querySelector('#saveTask').textContent = 'Save Changes';
+                const header = modal.querySelector('.modal-header h2');
+                const saveBtn = modal.querySelector('#saveTask');
+                
+                if (header) header.textContent = 'Edit Task';
+                if (saveBtn) saveBtn.textContent = 'Save Changes';
                 modal.dataset.editingTaskId = taskId;
 
                 document.getElementById('taskTitle').value = task.title;
@@ -1361,12 +1569,18 @@
             
             openAddTaskModal() {
                 const modal = document.getElementById('addTaskModal');
-                modal.querySelector('.modal-header h2').textContent = 'Add Custom Task';
-                modal.querySelector('#saveTask').textContent = 'Add Task';
+                const header = modal.querySelector('.modal-header h2');
+                const saveBtn = modal.querySelector('#saveTask');
+                
+                if (header) header.textContent = 'Add Custom Task';
+                if (saveBtn) saveBtn.textContent = 'Add Task';
                 delete modal.dataset.editingTaskId;
                 
                 document.getElementById('taskTitle').value = '';
-                document.getElementById('taskTime').value = this.formatTime(new Date(this.currentTime.getTime() + 60 * 60 * 1000), false);
+                document.getElementById('taskTime').value = this.formatTime(
+                    new Date(this.currentTime.getTime() + 60 * 60 * 1000), 
+                    false
+                );
                 document.getElementById('taskDuration').value = 30;
                 document.getElementById('taskNotes').value = '';
 
@@ -1390,33 +1604,45 @@
                     this.showNotification('Title and time are required.', 'error');
                     return;
                 }
-                data.endTime = this.formatTime(new Date(this.parseTime(data.time).getTime() + data.duration * 60000));
+                
+                data.endTime = this.formatTime(
+                    new Date(this.parseTime(data.time).getTime() + data.duration * 60000)
+                );
 
-                if (editingTaskId) this.updateTask(editingTaskId, data);
-                else this.createNewTask(data);
+                if (editingTaskId) {
+                    this.updateTask(editingTaskId, data);
+                } else {
+                    this.createNewTask(data);
+                }
             }
 
             createNewTask(data) {
                 const dateKey = this.formatDateKey(this.viewingDate);
                 if (!this.tasks[dateKey]) this.tasks[dateKey] = [];
                 
-                const newTask = { ...data, id: `custom_${Date.now()}`, date: dateKey, status: 'todo' };
+                const newTask = { 
+                    ...data, 
+                    id: `custom_${Date.now()}`, 
+                    date: dateKey, 
+                    status: 'todo' 
+                };
                 this.tasks[dateKey].push(newTask);
                 
                 this.dataManager.saveData({ tasks: this.tasks });
+                this.closeModal(document.getElementById('addTaskModal'));
             }
 
             updateAndSaveTask(taskToUpdate) {
-                 const dateKey = this.formatDateKey(this.viewingDate);
-                 if (!this.tasks[dateKey]) this.tasks[dateKey] = [];
-                 
-                 let taskIndex = this.tasks[dateKey].findIndex(t => t.id === taskToUpdate.id);
-                 if (taskIndex !== -1) {
+                const dateKey = this.formatDateKey(this.viewingDate);
+                if (!this.tasks[dateKey]) this.tasks[dateKey] = [];
+                
+                let taskIndex = this.tasks[dateKey].findIndex(t => t.id === taskToUpdate.id);
+                if (taskIndex !== -1) {
                     this.tasks[dateKey][taskIndex] = taskToUpdate;
-                 } else {
+                } else {
                     this.tasks[dateKey].push(taskToUpdate);
-                 }
-                 this.dataManager.saveData({ tasks: this.tasks });
+                }
+                this.dataManager.saveData({ tasks: this.tasks });
             }
 
             updateTask(taskId, data) {
@@ -1449,7 +1675,8 @@
                 if (!task) return;
 
                 const modal = document.getElementById('subPlanModal');
-                modal.querySelector('#subPlanTitle').textContent = `Plan: ${task.title}`;
+                const title = modal.querySelector('#subPlanTitle');
+                if (title) title.textContent = `Plan: ${task.title}`;
                 modal.dataset.taskId = taskId;
                 
                 this.resetSubTaskForm();
@@ -1481,7 +1708,10 @@
                 
                 this.resetSubTaskForm();
                 this.renderSubTasks(taskId);
-                this.updateTimeAllocation(taskId, this.currentDayTasks.find(t => t.id === taskId).duration);
+                const parentTask = this.currentDayTasks.find(t => t.id === taskId);
+                if (parentTask) {
+                    this.updateTimeAllocation(taskId, parentTask.duration);
+                }
                 this.showNotification('Sub-task added!', 'success');
             }
             
@@ -1489,34 +1719,59 @@
                 const subTaskData = this.getSubTaskDataFromForm();
                 if (!subTaskData) return;
 
-                this.subPlans[taskId][index] = { ...this.subPlans[taskId][index], ...subTaskData };
+                this.subPlans[taskId][index] = { 
+                    ...this.subPlans[taskId][index], 
+                    ...subTaskData 
+                };
                 
                 this.resetSubTaskForm();
                 this.renderSubTasks(taskId);
-                this.updateTimeAllocation(taskId, this.currentDayTasks.find(t => t.id === taskId).duration);
+                const parentTask = this.currentDayTasks.find(t => t.id === taskId);
+                if (parentTask) {
+                    this.updateTimeAllocation(taskId, parentTask.duration);
+                }
                 this.showNotification('Sub-task updated!', 'success');
             }
             
             renderSubTasks(taskId) {
                 const container = document.getElementById('subTasksList');
+                if (!container) return;
+                
                 const subTasks = this.subPlans[taskId] || [];
                 container.innerHTML = subTasks.map((sub, index) => `
                     <div class="sub-task-list-item">
                         <div class="sub-task-info">
                             <div class="sub-task-title">${sub.title}</div>
                             <div class="sub-task-duration">
-                                ${sub.startTime && sub.endTime ? `${sub.startTime} - ${sub.endTime}` : ''} (${sub.duration}m)
+                                ${sub.startTime && sub.endTime ? 
+                                    `${sub.startTime} - ${sub.endTime}` : ''} 
+                                (${sub.duration}m)
                             </div>
                         </div>
                         <div class="sub-task-actions">
-                            <button class="btn btn--secondary btn--sm edit-subtask-btn" data-index="${index}"><i class="fas fa-edit"></i></button>
-                            <button class="btn btn--secondary btn--sm delete-subtask-btn" data-index="${index}"><i class="fas fa-trash"></i></button>
+                            <button class="btn btn--secondary btn--sm edit-subtask-btn" 
+                                    data-index="${index}">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn--secondary btn--sm delete-subtask-btn" 
+                                    data-index="${index}">
+                                <i class="fas fa-trash"></i>
+                            </button>
                         </div>
                     </div>
                 `).join('');
 
-                container.querySelectorAll('.edit-subtask-btn').forEach(btn => btn.addEventListener('click', (e) => this.openEditSubTaskForm(taskId, e.currentTarget.dataset.index)));
-                container.querySelectorAll('.delete-subtask-btn').forEach(btn => btn.addEventListener('click', (e) => this.deleteSubTask(taskId, e.currentTarget.dataset.index)));
+                container.querySelectorAll('.edit-subtask-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => 
+                        this.openEditSubTaskForm(taskId, e.currentTarget.dataset.index)
+                    );
+                });
+                
+                container.querySelectorAll('.delete-subtask-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => 
+                        this.deleteSubTask(taskId, e.currentTarget.dataset.index)
+                    );
+                });
             }
             
             openEditSubTaskForm(taskId, index) {
@@ -1529,27 +1784,36 @@
                 document.getElementById('subTaskEndTime').value = subTask.endTime || '';
 
                 const addButton = document.getElementById('addSubTask');
-                addButton.textContent = 'Update Sub-task';
+                if (addButton) addButton.textContent = 'Update Sub-task';
                 
                 const form = document.querySelector('.sub-task-form');
                 form.dataset.editingTaskId = taskId;
                 form.dataset.editingSubtaskIndex = index;
             }
 
-            // --- RSO Shift Methods (UPDATED) ---
+            // RSO Shift Methods
             handleShiftTypeClick(element) {
                 const shiftType = element.dataset.shift;
                 this.openAddRSOModal(shiftType);
             }
+            
             openAddRSOModal(preselectedShift = null) {
                 const modal = document.getElementById('addRSOModal');
                 if (!modal) return;
-                document.getElementById('shiftDate').value = this.formatDateKey(this.viewingDate);
-                if (preselectedShift) {
-                    document.getElementById('shiftType').value = preselectedShift;
+                
+                const shiftDateInput = document.getElementById('shiftDate');
+                if (shiftDateInput) {
+                    shiftDateInput.value = this.formatDateKey(this.viewingDate);
                 }
+                
+                if (preselectedShift) {
+                    const shiftTypeSelect = document.getElementById('shiftType');
+                    if (shiftTypeSelect) shiftTypeSelect.value = preselectedShift;
+                }
+                
                 modal.classList.remove('hidden');
             }
+            
             saveRSOShift() {
                 const dateStr = document.getElementById('shiftDate').value;
                 const shiftType = document.getElementById('shiftType').value;
@@ -1568,7 +1832,11 @@
                     return;
                 }
 
-                this.rsoShifts[dateKey].push({ id: `rso_${Date.now()}`, shift: shiftType });
+                this.rsoShifts[dateKey].push({ 
+                    id: `rso_${Date.now()}`, 
+                    shift: shiftType 
+                });
+                
                 this.dataManager.saveData({ rsoShifts: this.rsoShifts });
                 
                 if (dateKey === this.formatDateKey(this.viewingDate)) {
@@ -1578,8 +1846,11 @@
                 this.closeModal(document.getElementById('addRSOModal'));
                 this.showNotification(`Shift ${shiftType} added for ${dateKey}!`, 'success');
             }
+            
             updateRSODisplay() {
                 const container = document.getElementById('todayRSOShiftContainer');
+                if (!container) return;
+                
                 const dateKey = this.formatDateKey(this.viewingDate);
                 const shifts = this.rsoShifts[dateKey] || [];
 
@@ -1594,6 +1865,7 @@
                     container.innerHTML = '<span>No RSO Shift</span>';
                 }
             }
+            
             deleteRSOShift(shiftId) {
                 const dateKey = this.formatDateKey(this.viewingDate);
                 if (!this.rsoShifts[dateKey]) return;
@@ -1607,14 +1879,30 @@
                 this.dataManager.saveData({ rsoShifts: this.rsoShifts });
             }
 
-            // --- Helper and Utility Functions ---
+            // Helper and Utility Functions
             updateDateDisplay() {
-                const dateString = this.viewingDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-                document.getElementById('currentDate').textContent = dateString;
-                document.getElementById('viewingDate').textContent = this.isToday(this.viewingDate) ? "Today's Schedule" : `Viewing: ${dateString}`;
+                const dateString = this.viewingDate.toLocaleDateString('en-US', { 
+                    weekday: 'long', 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                });
+                
+                const currentDateEl = document.getElementById('currentDate');
+                if (currentDateEl) currentDateEl.textContent = dateString;
+                
+                const viewingDateEl = document.getElementById('viewingDate');
+                if (viewingDateEl) {
+                    viewingDateEl.textContent = this.isToday(this.viewingDate) ? 
+                        "Today's Schedule" : 
+                        `Viewing: ${dateString}`;
+                }
             }
+            
             updateCurrentTaskIndicator() {
                 const indicator = document.getElementById('currentTask');
+                if (!indicator) return;
+                
                 if (this.isToday(this.viewingDate)) {
                     const currentTask = this.currentDayTasks.find(t => t.status === 'inProgress');
                     if (currentTask) {
@@ -1625,41 +1913,92 @@
                 }
                 indicator.style.display = 'none';
             }
+            
             updateActiveTaskTimers() {
                 document.querySelectorAll('.task-item.in-progress').forEach(el => {
                     const task = this.currentDayTasks.find(t => t.id === el.dataset.taskId);
                     if (!task) return;
 
                     const parentTimerEl = el.querySelector('.task-timer-container');
-                    if (parentTimerEl) parentTimerEl.textContent = this.getTimeUntilDate(this.parseTime(task.endTime)) || 'Ending now';
+                    if (parentTimerEl) {
+                        parentTimerEl.textContent = 
+                            this.getTimeUntilDate(this.parseTime(task.endTime)) || 'Ending now';
+                    }
 
                     const activeSubTaskTimerEl = el.querySelector('.active-sub-task .task-timer');
                     if (activeSubTaskTimerEl) {
                         const activeSubTask = (this.subPlans[task.id] || []).find(sub => {
-                             if (!sub.startTime || !sub.endTime || sub.completed) return false;
-                             const now = this.currentTime;
-                             return now >= this.parseTime(sub.startTime) && now < this.parseTime(sub.endTime);
+                            if (!sub.startTime || !sub.endTime || sub.completed) return false;
+                            const now = this.currentTime;
+                            return now >= this.parseTime(sub.startTime) && 
+                                   now < this.parseTime(sub.endTime);
                         });
-                        if(activeSubTask) activeSubTaskTimerEl.textContent = this.getTimeUntilDate(this.parseTime(activeSubTask.endTime)) || 'Ending now';
+                        
+                        if (activeSubTask) {
+                            activeSubTaskTimerEl.textContent = 
+                                this.getTimeUntilDate(this.parseTime(activeSubTask.endTime)) || 
+                                'Ending now';
+                        }
                     }
                 });
             }
+            
             updateCounts() {
                 const todo = this.currentDayTasks.filter(t => t.status === 'todo').length;
                 const inProgress = this.currentDayTasks.filter(t => t.status === 'inProgress').length;
                 const done = this.currentDayTasks.filter(t => t.status === 'done').length;
-                document.getElementById('todoCount').textContent = todo;
-                document.getElementById('inProgressCount').textContent = inProgress;
-                document.getElementById('doneCount').textContent = done;
-                document.getElementById('completionPercentage').textContent = `${this.currentDayTasks.length > 0 ? Math.round((done / this.currentDayTasks.length) * 100) : 0}%`;
+                const total = this.currentDayTasks.length;
+                
+                const todoCountEl = document.getElementById('todoCount');
+                const inProgressCountEl = document.getElementById('inProgressCount');
+                const doneCountEl = document.getElementById('doneCount');
+                const completionEl = document.getElementById('completionPercentage');
+                
+                if (todoCountEl) todoCountEl.textContent = todo;
+                if (inProgressCountEl) inProgressCountEl.textContent = inProgress;
+                if (doneCountEl) doneCountEl.textContent = done;
+                if (completionEl) {
+                    completionEl.textContent = `${total > 0 ? 
+                        Math.round((done / total) * 100) : 0}%`;
+                }
             }
-            changeDate(days) { this.viewingDate.setDate(this.viewingDate.getDate() + days); this.refreshView(); }
-            goToToday() { this.viewingDate = new Date(); this.refreshView(); }
-            refreshView() { this.updateDateDisplay(); this.loadTodaysTasks(); this.updateRSODisplay(); }
-            parseTime(timeStr, baseDate = this.viewingDate) { const [h, m] = timeStr.split(':').map(Number); const d = new Date(baseDate); d.setHours(h, m, 0, 0); return d; }
-            formatTime(date, sec = true) { return date.toLocaleTimeString('en-US', { hour12: false }).substring(0, sec ? 8 : 5); }
-            formatDateKey(date) { return date.toISOString().split('T')[0]; }
-            isToday(date) { return date.toDateString() === new Date().toDateString(); }
+            
+            changeDate(days) { 
+                this.viewingDate.setDate(this.viewingDate.getDate() + days); 
+                this.refreshView(); 
+            }
+            
+            goToToday() { 
+                this.viewingDate = new Date(); 
+                this.refreshView(); 
+            }
+            
+            refreshView() { 
+                this.updateDateDisplay(); 
+                this.loadTodaysTasks(); 
+                this.updateRSODisplay(); 
+            }
+            
+            parseTime(timeStr, baseDate = this.viewingDate) { 
+                const [h, m] = timeStr.split(':').map(Number); 
+                const d = new Date(baseDate); 
+                d.setHours(h, m, 0, 0); 
+                return d; 
+            }
+            
+            formatTime(date, sec = true) { 
+                return date.toLocaleTimeString('en-US', { hour12: false })
+                    .substring(0, sec ? 8 : 5); 
+            }
+            
+            formatDateKey(date) { 
+                return date.toISOString().split('T')[0]; 
+            }
+            
+            isToday(date) { 
+                return date.toDateString() === new Date().toDateString(); 
+            }
+            
             getTimeUntilDate(endDate) {
                 const diff = endDate - this.currentTime;
                 if (diff <= 0) return null;
@@ -1668,64 +2007,156 @@
                 const s = Math.floor((diff % 60000) / 1000);
                 return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
             }
-            closeModal(modal) { modal?.classList.add('hidden'); }
+            
+            closeModal(modal) { 
+                if (modal) modal.classList.add('hidden'); 
+            }
+            
             showNotification(message, type = 'info') {
                 const notification = document.createElement('div');
                 notification.className = `notification notification--${type}`;
-                notification.style.cssText = `position:fixed;top:20px;right:20px;padding:12px 16px;border-radius:8px;color:white;font-weight:500;z-index:1001;box-shadow:var(--shadow-lg);background-color:${{success:'#2EBA6B',error:'#C0152F',info:'#3B82F6'}[type]||'#3B82F6'};animation:slideIn 0.3s ease-out;`;
+                const colors = {
+                    success: '#2EBA6B',
+                    error: '#C0152F',
+                    warning: '#FFA500',
+                    info: '#3B82F6'
+                };
+                notification.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    padding: 12px 16px;
+                    border-radius: 8px;
+                    color: white;
+                    font-weight: 500;
+                    z-index: 1001;
+                    box-shadow: var(--shadow-lg);
+                    background-color: ${colors[type] || colors.info};
+                    animation: slideIn 0.3s ease-out;
+                `;
                 notification.textContent = message;
                 document.body.appendChild(notification);
-                setTimeout(() => { notification.style.animation = 'slideOut 0.3s ease-out'; setTimeout(() => notification.remove(), 300); }, 4000);
+                
+                setTimeout(() => { 
+                    notification.style.animation = 'slideOut 0.3s ease-out'; 
+                    setTimeout(() => notification.remove(), 300); 
+                }, 4000);
             }
             
             toggleTheme() {
-                const newTheme = document.body.getAttribute('data-color-scheme') === 'dark' ? 'light' : 'dark';
+                const currentTheme = document.body.getAttribute('data-color-scheme');
+                const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
                 document.body.setAttribute('data-color-scheme', newTheme);
                 localStorage.setItem('theme', newTheme);
-                document.querySelector('#themeToggle i').className = newTheme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+                
+                const themeIcon = document.querySelector('#themeToggle i');
+                if (themeIcon) {
+                    themeIcon.className = newTheme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+                }
             }
-            loadTheme() {
-                const theme = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-                document.body.setAttribute('data-color-scheme', theme);
-                document.querySelector('#themeToggle i').className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
-            }
-            saveNotes() { this.notes = document.getElementById('quickNotes').value; this.dataManager.saveData({ notes: this.notes }); this.showNotification('Notes saved!', 'success'); }
-            loadNotesContent() { document.getElementById('quickNotes').value = this.notes; }
             
-            saveSubPlan() { this.dataManager.saveData({ subPlans: this.subPlans }); this.closeModal(document.getElementById('subPlanModal')); }
+            loadTheme() {
+                const savedTheme = localStorage.getItem('theme');
+                const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                const theme = savedTheme || (prefersDark ? 'dark' : 'light');
+                
+                document.body.setAttribute('data-color-scheme', theme);
+                
+                const themeIcon = document.querySelector('#themeToggle i');
+                if (themeIcon) {
+                    themeIcon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+                }
+            }
+            
+            saveNotes() { 
+                const notesEl = document.getElementById('quickNotes');
+                if (notesEl) {
+                    this.notes = notesEl.value;
+                    this.dataManager.saveData({ notes: this.notes }); 
+                    this.showNotification('Notes saved!', 'success'); 
+                }
+            }
+            
+            loadNotesContent() { 
+                const notesEl = document.getElementById('quickNotes');
+                if (notesEl) notesEl.value = this.notes; 
+            }
+            
+            saveSubPlan() { 
+                this.dataManager.saveData({ subPlans: this.subPlans }); 
+                this.closeModal(document.getElementById('subPlanModal')); 
+            }
+            
             deleteSubTask(taskId, index) {
                 this.subPlans[taskId].splice(index, 1);
                 this.renderSubTasks(taskId);
-                this.updateTimeAllocation(taskId, this.currentDayTasks.find(t => t.id === taskId).duration);
+                const parentTask = this.currentDayTasks.find(t => t.id === taskId);
+                if (parentTask) {
+                    this.updateTimeAllocation(taskId, parentTask.duration);
+                }
             }
+            
             getSubTaskDataFromForm() {
                 const title = document.getElementById('subTaskTitle').value.trim();
-                if (!title) { this.showNotification('Sub-task title is required.', 'error'); return null; }
+                if (!title) { 
+                    this.showNotification('Sub-task title is required.', 'error'); 
+                    return null; 
+                }
+                
                 const startTime = document.getElementById('subTaskStartTime').value || null;
                 const endTime = document.getElementById('subTaskEndTime').value || null;
                 let duration = parseInt(document.getElementById('subTaskDuration').value);
+                
                 if (startTime && endTime) {
                     duration = (this.parseTime(endTime) - this.parseTime(startTime)) / 60000;
-                    if (duration < 0) { this.showNotification('End time must be after start time.', 'error'); return null; }
+                    if (duration < 0) { 
+                        this.showNotification('End time must be after start time.', 'error'); 
+                        return null; 
+                    }
                 }
+                
                 return { title, duration, startTime, endTime, completed: false };
             }
+            
             resetSubTaskForm() {
                 const form = document.querySelector('.sub-task-form');
-                form.reset();
-                document.getElementById('subTaskDuration').value = 30;
-                document.getElementById('addSubTask').textContent = 'Add Sub-task';
-                delete form.dataset.editingTaskId;
-                delete form.dataset.editingSubtaskIndex;
+                if (form) form.reset();
+                
+                const durationEl = document.getElementById('subTaskDuration');
+                if (durationEl) durationEl.value = 30;
+                
+                const addBtn = document.getElementById('addSubTask');
+                if (addBtn) addBtn.textContent = 'Add Sub-task';
+                
+                if (form) {
+                    delete form.dataset.editingTaskId;
+                    delete form.dataset.editingSubtaskIndex;
+                }
             }
+            
             updateTimeAllocation(taskId, totalDuration) {
                 const subTasks = this.subPlans[taskId] || [];
                 const allocatedTime = subTasks.reduce((sum, sub) => sum + sub.duration, 0);
-                document.getElementById('remainingTime').textContent = `${totalDuration - allocatedTime} minutes remaining`;
-                document.getElementById('timeAllocationBar').innerHTML = subTasks.map((sub, i) => `<div class="allocation-segment" style="width:${(sub.duration/totalDuration)*100}%;background-color:${['#1FB8CD','#FFC185','#B4413C'][i%3]}"></div>`).join('');
+                
+                const remainingEl = document.getElementById('remainingTime');
+                if (remainingEl) {
+                    remainingEl.textContent = `${totalDuration - allocatedTime} minutes remaining`;
+                }
+                
+                const barEl = document.getElementById('timeAllocationBar');
+                if (barEl) {
+                    const colors = ['#1FB8CD', '#FFC185', '#B4413C'];
+                    barEl.innerHTML = subTasks.map((sub, i) => `
+                        <div class="allocation-segment" 
+                             style="width: ${(sub.duration/totalDuration)*100}%;
+                                    background-color: ${colors[i % colors.length]}">
+                        </div>
+                    `).join('');
+                }
             }
             
             handleDataUpdate(newData) {
+                log('Handling data update');
                 this.tasks = newData.tasks || {};
                 this.rsoShifts = newData.rsoShifts || {};
                 this.subPlans = newData.subPlans || {};
@@ -1737,16 +2168,29 @@
             }
 
             destroy() {
-                clearInterval(this.timeInterval);
-                clearInterval(this.taskInterval);
+                log('Destroying app instance');
+                if (this.timeInterval) clearInterval(this.timeInterval);
+                if (this.taskInterval) clearInterval(this.taskInterval);
             }
         }
 
-        // Initialize Auth Manager
+        // Add animation styles
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideIn {
+                from { transform: translateX(100%) }
+                to { transform: translateX(0) }
+            }
+            @keyframes slideOut {
+                from { transform: translateX(0) }
+                to { transform: translateX(100%) }
+            }
+        `;
+        document.head.appendChild(style);
+
+        // Initialize Auth Manager when DOM is ready
         document.addEventListener('DOMContentLoaded', () => {
-            const style = document.createElement('style');
-            style.textContent = `@keyframes slideIn{from{transform:translateX(100%)}to{transform:translateX(0)}}@keyframes slideOut{from{transform:translateX(0)}to{transform:translateX(100%)}}`;
-            document.head.appendChild(style);
+            log('DOM Content Loaded - Initializing Auth Manager');
             authManager.init();
         });
     </script>
