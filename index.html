@@ -839,7 +839,7 @@
     <!-- Firebase SDKs -->
     <script type="module">
         // ===================================================================================
-        // PASTE YOUR FIREBASE CONFIGURATION HERE
+        // YOUR FIREBASE CONFIGURATION
         // ===================================================================================
         const firebaseConfig = {
             apiKey: "AIzaSyCWnD3jTPpB865HL_3-qezaRpx_CYxCJck",
@@ -1655,7 +1655,7 @@
             }
             changeDate(days) { this.viewingDate.setDate(this.viewingDate.getDate() + days); this.refreshView(); }
             goToToday() { this.viewingDate = new Date(); this.refreshView(); }
-            refreshView() { this.updateDateDisplay(); this.loadTodaysTasks(); this.renderTasks(); this.updateRSODisplay(); }
+            refreshView() { this.updateDateDisplay(); this.loadTodaysTasks(); this.updateRSODisplay(); }
             parseTime(timeStr, baseDate = this.viewingDate) { const [h, m] = timeStr.split(':').map(Number); const d = new Date(baseDate); d.setHours(h, m, 0, 0); return d; }
             formatTime(date, sec = true) { return date.toLocaleTimeString('en-US', { hour12: false }).substring(0, sec ? 8 : 5); }
             formatDateKey(date) { return date.toISOString().split('T')[0]; }
