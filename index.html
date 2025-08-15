@@ -1176,8 +1176,9 @@
                 this.customRoutines = initialData.customRoutines || {};
                 this.notes = initialData.notes || '';
 
-                this.currentDate = new Date();
-                this.viewingDate = new Date();
+                const now = new Date();
+                this.currentDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                this.viewingDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
                 this.currentTime = new Date();
                 this.lastCheckMinute = new Date().getMinutes();
 
@@ -1359,8 +1360,14 @@
                         delete task.completedAt;
                     }
                     
+                    // Important: Save the complete task object with all properties
+                    const completeTask = {
+                        ...task,
+                        status: newStatus
+                    };
+                    
                     // Save and refresh
-                    this.updateAndSaveTask(task);
+                    this.updateAndSaveTask(completeTask);
                 }
             }
             
@@ -1414,27 +1421,35 @@
                 const dayOfWeek = this.viewingDate.getDay();
                 
                 const savedTasksForDay = (this.tasks[dateKey] || []).filter(t => !t.deleted);
-                const existingTaskIds = new Set(savedTasksForDay.map(t => t.id));
+                const savedTaskIds = new Set(savedTasksForDay.map(t => t.id));
 
                 let routineTasks = [];
                 if (dayOfWeek >= 1 && dayOfWeek <= 5) { 
                     const routineTemplate = this.customRoutines[dateKey] || this.defaultWeekdayRoutine;
                     routineTasks = routineTemplate
-                        .map(task => ({
-                            ...task,
-                            id: `${dateKey}_${task.id}`,
-                            date: dateKey,
-                            status: 'todo',
-                            isRoutine: true,
-                            // Ensure isLongDuration is set for tasks >= 120 minutes
-                            isLongDuration: task.isLongDuration || task.duration >= 120,
-                            endTime: task.endTime || this.formatTime(new Date(this.parseTime(task.time).getTime() + task.duration * 60000))
-                        }))
-                        .filter(task => !existingTaskIds.has(task.id));
+                        .map(task => {
+                            const taskId = `${dateKey}_${task.id}`;
+                            // Skip if this routine task is already saved (with any status)
+                            if (savedTaskIds.has(taskId)) {
+                                return null;
+                            }
+                            return {
+                                ...task,
+                                id: taskId,
+                                date: dateKey,
+                                status: 'todo',
+                                isRoutine: true,
+                                // Ensure isLongDuration is set for tasks >= 120 minutes
+                                isLongDuration: task.isLongDuration || task.duration >= 120,
+                                endTime: task.endTime || this.formatTime(new Date(this.parseTime(task.time).getTime() + task.duration * 60000))
+                            };
+                        })
+                        .filter(task => task !== null);
                 }
                 
                 this.currentDayTasks = [...savedTasksForDay, ...routineTasks];
                 
+                // Only update statuses for today's tasks that are not already done
                 if (this.isToday(this.viewingDate)) {
                     this.updateTaskStatuses();
                 }
@@ -1445,12 +1460,17 @@
                 const now = this.currentTime;
                 let statusHasChanged = false;
                 this.currentDayTasks.forEach(task => {
+                    // Never change status of completed tasks
                     if (task.status === 'done' || !task.time) return;
+                    
                     const startTime = this.parseTime(task.time);
                     
+                    // Only update todo tasks to inProgress when their time arrives
                     if (now >= startTime && task.status === 'todo') {
                         task.status = 'inProgress';
                         statusHasChanged = true;
+                        // Save the status change
+                        this.updateAndSaveTask(task);
                     }
                 });
                 return statusHasChanged;
@@ -1653,11 +1673,20 @@
                 const dateKey = this.formatDateKey(this.viewingDate);
                 if (!this.tasks[dateKey]) this.tasks[dateKey] = [];
                 
+                // Find and update or add the task
                 let taskIndex = this.tasks[dateKey].findIndex(t => t.id === taskToUpdate.id);
                 if (taskIndex !== -1) {
-                    this.tasks[dateKey][taskIndex] = taskToUpdate;
+                    // Update existing task
+                    this.tasks[dateKey][taskIndex] = {
+                        ...taskToUpdate,
+                        date: dateKey  // Ensure date is always set
+                    };
                 } else {
-                    this.tasks[dateKey].push(taskToUpdate);
+                    // Add new task (including routine tasks that changed status)
+                    this.tasks[dateKey].push({
+                        ...taskToUpdate,
+                        date: dateKey
+                    });
                 }
                 
                 // Update the current day tasks array
@@ -2001,12 +2030,17 @@
             }
             
             changeDate(days) { 
-                this.viewingDate.setDate(this.viewingDate.getDate() + days); 
+                this.viewingDate = new Date(
+                    this.viewingDate.getFullYear(),
+                    this.viewingDate.getMonth(),
+                    this.viewingDate.getDate() + days
+                );
                 this.refreshView(); 
             }
             
             goToToday() { 
-                this.viewingDate = new Date(); 
+                const now = new Date();
+                this.viewingDate = new Date(now.getFullYear(), now.getMonth(), now.getDate()); 
                 this.refreshView(); 
             }
             
@@ -2029,11 +2063,18 @@
             }
             
             formatDateKey(date) { 
-                return date.toISOString().split('T')[0]; 
+                // Ensure we're using local date, not UTC
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
             }
             
             isToday(date) { 
-                return date.toDateString() === new Date().toDateString(); 
+                const today = new Date();
+                return date.getFullYear() === today.getFullYear() &&
+                       date.getMonth() === today.getMonth() &&
+                       date.getDate() === today.getDate();
             }
             
             getTimeUntilDate(endDate) {
