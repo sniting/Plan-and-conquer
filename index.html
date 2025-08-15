@@ -971,12 +971,24 @@
                             // Show app UI immediately
                             this.showApp(username);
                             
-                            // Then start the app
+                            // Then start the app with better error handling
                             await this.startApp(user.uid, username);
                             
                         } catch (error) {
                             console.error('Error during app startup:', error);
-                            alert('There was an error loading the app. Please refresh the page.');
+                            console.error('Full error details:', error.stack);
+                            
+                            // Show more helpful error message
+                            const errorMessage = `There was an error loading the app: ${error.message || 'Unknown error'}. Please refresh the page.`;
+                            alert(errorMessage);
+                            
+                            // Optionally try to reload once
+                            if (!window.hasReloaded) {
+                                window.hasReloaded = true;
+                                setTimeout(() => {
+                                    window.location.reload();
+                                }, 2000);
+                            }
                         } finally {
                             hideLoading();
                         }
@@ -984,7 +996,11 @@
                         this.showLogin();
                         if (currentAppInstance) {
                             log('Destroying current app instance');
-                            currentAppInstance.destroy();
+                            try {
+                                currentAppInstance.destroy();
+                            } catch (error) {
+                                console.error('Error destroying app instance:', error);
+                            }
                             currentAppInstance = null;
                         }
                     }
@@ -1087,7 +1103,12 @@
                     
                     const dataManager = new FirestoreDataManager(userId);
                     const initialData = await dataManager.loadInitialData();
-                    log('Initial data loaded:', initialData);
+                    log('Initial data loaded:', Object.keys(initialData));
+                    
+                    // Validate initial data structure
+                    if (!initialData || typeof initialData !== 'object') {
+                        throw new Error('Invalid initial data structure');
+                    }
                     
                     currentAppInstance = new PersonalAssistantApp(userId, username, dataManager, initialData);
                     log('App instance created successfully');
@@ -1100,6 +1121,18 @@
                     
                 } catch (error) {
                     console.error('Error starting app:', error);
+                    console.error('Error details:', error.stack);
+                    
+                    // Try to clean up on error
+                    if (currentAppInstance) {
+                        try {
+                            currentAppInstance.destroy();
+                        } catch (cleanupError) {
+                            console.error('Error during cleanup:', cleanupError);
+                        }
+                        currentAppInstance = null;
+                    }
+                    
                     throw error;
                 }
             }
@@ -1183,25 +1216,55 @@
                 // Personal Assistant App Class
         class PersonalAssistantApp {
             constructor(userId, username, dataManager, initialData) {
-                log('Creating PersonalAssistantApp instance');
-                
-                this.userId = userId;
-                this.username = username;
-                this.dataManager = dataManager;
+                try {
+                    log('Creating PersonalAssistantApp instance');
+                    
+                    this.userId = userId;
+                    this.username = username;
+                    this.dataManager = dataManager;
 
-                // Initialize data from Firestore
-                this.tasks = initialData.tasks || {};
-                this.rsoShifts = initialData.rsoShifts || {};
-                this.subPlans = initialData.subPlans || {};
-                this.customRoutines = initialData.customRoutines || {};
-                this.notes = initialData.notes || '';
+                    // Initialize data from Firestore with validation
+                    this.tasks = initialData.tasks || {};
+                    this.rsoShifts = initialData.rsoShifts || {};
+                    this.subPlans = initialData.subPlans || {};
+                    this.customRoutines = initialData.customRoutines || {};
+                    this.notes = initialData.notes || '';
 
-                // Set up dates properly
-                const now = new Date();
-                this.currentDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-                this.viewingDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-                this.currentTime = new Date();
-                this.lastCheckMinute = new Date().getMinutes();
+                    // Set up dates properly
+                    const now = new Date();
+                    this.currentDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                    this.viewingDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                    this.currentTime = new Date();
+                    this.lastCheckMinute = new Date().getMinutes();
+
+                    this.defaultWeekdayRoutine = [
+                        {id: "wake", title: "Wake up", time: "05:55", duration: 5, category: "personal"},
+                        {id: "gym", title: "Gym", time: "06:30", duration: 85, category: "personal"},
+                        {id: "clock_in", title: "Clock In", time: "08:00", duration: 1, category: "work", isMandatory: true},
+                        {id: "session01", title: "Session 01", time: "08:01", duration: 299, category: "work", isLongDuration: true},
+                        {id: "begin_meal", title: "Begin Meal", time: "13:00", duration: 1, category: "personal", isMandatory: true},
+                        {id: "lunch", title: "Lunch Break", time: "13:01", duration: 29, category: "personal"},
+                        {id: "end_meal", title: "End Meal", time: "13:30", duration: 1, category: "personal", isMandatory: true},
+                        {id: "session02", title: "Session 02", time: "13:31", duration: 179, category: "work", isLongDuration: true},
+                        {id: "clock_out", title: "Clock Out", time: "16:30", duration: 1, category: "work", isMandatory: true},
+                        {id: "recreation", title: "Pickleball/Jog", time: "16:40", duration: 80, category: "personal"},
+                        {id: "bath", title: "Complete bath", time: "18:30", duration: 30, category: "personal"},
+                        {id: "dinner", title: "Dinner time", time: "18:35", duration: 75, category: "personal"},
+                        {id: "gaming", title: "PlayStation/Lego time", time: "20:00", duration: 90, category: "personal"},
+                        {id: "planning", title: "Plan next day", time: "21:30", duration: 30, category: "personal"}
+                    ];
+
+                    this.currentDayTasks = [];
+                    
+                    // Initialize UI
+                    this.initUI();
+                    
+                    log('PersonalAssistantApp initialized successfully');
+                } catch (error) {
+                    console.error('Error in PersonalAssistantApp constructor:', error);
+                    throw new Error(`Failed to initialize app: ${error.message}`);
+                }
+            }
 
                 this.defaultWeekdayRoutine = [
                     {id: "wake", title: "Wake up", time: "05:55", duration: 5, category: "personal"},
@@ -1232,97 +1295,144 @@
             }
 
             initUI() {
-                log('Initializing UI components');
-                
-                // Setup event listeners first
-                this.setupEventListeners();
-                
-                // Load initial data
-                this.loadTodaysTasks();
-                this.updateDateDisplay();
-                this.renderTasks();
-                this.updateRSODisplay();
-                this.loadNotesContent();
-                
-                // Start time updates
-                this.updateTime();
-                this.timeInterval = setInterval(() => this.updateTime(), 1000);
-                this.taskInterval = setInterval(() => this.checkTaskTransitions(), 1000); 
-                
-                // Load theme
-                this.loadTheme();
-                
-                log('UI initialized');
+                try {
+                    log('Initializing UI components');
+                    
+                    // Setup event listeners first
+                    this.setupEventListeners();
+                    
+                    // Load initial data
+                    this.loadTodaysTasks();
+                    this.updateDateDisplay();
+                    this.renderTasks();
+                    this.updateRSODisplay();
+                    this.loadNotesContent();
+                    
+                    // Start time updates
+                    this.updateTime();
+                    this.timeInterval = setInterval(() => this.updateTime(), 1000);
+                    this.taskInterval = setInterval(() => this.checkTaskTransitions(), 1000); 
+                    
+                    // Load theme
+                    this.loadTheme();
+                    
+                    log('UI initialized successfully');
+                } catch (error) {
+                    console.error('Error in initUI:', error);
+                    // Show more specific error
+                    throw new Error(`UI initialization failed: ${error.message}`);
+                }
             }
 
             setupEventListeners() {
-                log('Setting up event listeners');
-                
-                // Check if elements exist before adding listeners
-                const addListener = (id, event, handler) => {
-                    const element = document.getElementById(id);
-                    if (element) {
-                        element.addEventListener(event, handler.bind(this));
-                    } else {
-                        console.warn(`Element with id '${id}' not found`);
+                try {
+                    log('Setting up event listeners');
+                    
+                    // Check if elements exist before adding listeners
+                    const addListener = (id, event, handler) => {
+                        const element = document.getElementById(id);
+                        if (element) {
+                            element.addEventListener(event, handler.bind(this));
+                            return true;
+                        } else {
+                            log(`Warning: Element with id '${id}' not found`);
+                            return false;
+                        }
+                    };
+
+                    // Core navigation listeners
+                    addListener('themeToggle', 'click', () => this.toggleTheme());
+                    addListener('prevDay', 'click', () => this.changeDate(-1));
+                    addListener('todayBtn', 'click', () => this.goToToday());
+                    addListener('nextDay', 'click', () => this.changeDate(1));
+                    
+                    // Task management listeners
+                    addListener('addCustomTask', 'click', () => this.openAddTaskModal());
+                    addListener('saveTask', 'click', () => this.saveCustomTask());
+                    
+                    // RSO management listeners
+                    addListener('addRSOShift', 'click', () => this.openAddRSOModal());
+                    addListener('saveRSOShift', 'click', () => this.saveRSOShift());
+                    
+                    // Sub-task listeners
+                    addListener('addSubTask', 'click', () => this.addSubTask());
+                    addListener('saveSubPlan', 'click', () => this.saveSubPlan());
+                    
+                    // Notes listener
+                    addListener('saveNotes', 'click', () => this.saveNotes());
+
+                    // Shift type clicks - safe query
+                    const shiftTypes = document.querySelectorAll('.shift-type');
+                    if (shiftTypes && shiftTypes.length > 0) {
+                        shiftTypes.forEach(shiftEl => {
+                            if (shiftEl) {
+                                shiftEl.addEventListener('click', (e) => this.handleShiftTypeClick(e.currentTarget));
+                            }
+                        });
                     }
-                };
+                    
+                    // Modal close buttons - safe query
+                    const modalCloseButtons = document.querySelectorAll('.modal-close');
+                    if (modalCloseButtons && modalCloseButtons.length > 0) {
+                        modalCloseButtons.forEach(btn => {
+                            if (btn) {
+                                btn.addEventListener('click', (e) => {
+                                    const modal = e.target.closest('.modal');
+                                    if (modal) this.closeModal(modal);
+                                });
+                            }
+                        });
+                    }
+                    
+                    // Modal background clicks - safe query
+                    const modals = document.querySelectorAll('.modal');
+                    if (modals && modals.length > 0) {
+                        modals.forEach(modal => {
+                            if (modal) {
+                                modal.addEventListener('click', (e) => { 
+                                    if (e.target === modal) this.closeModal(modal); 
+                                });
+                            }
+                        });
+                    }
 
-                addListener('themeToggle', 'click', () => this.toggleTheme());
-                addListener('prevDay', 'click', () => this.changeDate(-1));
-                addListener('todayBtn', 'click', () => this.goToToday());
-                addListener('nextDay', 'click', () => this.changeDate(1));
-                addListener('addCustomTask', 'click', () => this.openAddTaskModal());
-                addListener('saveTask', 'click', () => this.saveCustomTask());
-                addListener('addRSOShift', 'click', () => this.openAddRSOModal());
-                addListener('saveRSOShift', 'click', () => this.saveRSOShift());
-                addListener('addSubTask', 'click', () => this.addSubTask());
-                addListener('saveSubPlan', 'click', () => this.saveSubPlan());
-                addListener('saveNotes', 'click', () => this.saveNotes());
-
-                // Shift type clicks
-                document.querySelectorAll('.shift-type').forEach(shiftEl => {
-                    shiftEl.addEventListener('click', (e) => this.handleShiftTypeClick(e.currentTarget));
-                });
-                
-                // Modal close buttons
-                document.querySelectorAll('.modal-close').forEach(btn => {
-                    btn.addEventListener('click', (e) => this.closeModal(e.target.closest('.modal')));
-                });
-                
-                // Modal background clicks
-                document.querySelectorAll('.modal').forEach(modal => {
-                    modal.addEventListener('click', (e) => { 
-                        if (e.target === modal) this.closeModal(modal); 
-                    });
-                });
-
-                // Task management grid events
-                const mainGrid = document.querySelector('.task-management-grid');
-                if (mainGrid) {
-                    mainGrid.addEventListener('dblclick', (e) => this.handleTaskDoubleClick(e));
-                    mainGrid.addEventListener('dragstart', (e) => this.handleDragStart(e));
-                    mainGrid.addEventListener('dragend', (e) => this.handleDragEnd(e));
-                    mainGrid.addEventListener('dragover', (e) => this.handleDragOver(e));
-                    mainGrid.addEventListener('dragenter', (e) => this.handleDragEnter(e));
-                    mainGrid.addEventListener('dragleave', (e) => this.handleDragLeave(e));
-                    mainGrid.addEventListener('drop', (e) => this.handleDrop(e));
-                    mainGrid.addEventListener('click', (e) => {
-                        if (e.target.closest('.delete-task-btn')) {
-                            const taskItem = e.target.closest('.task-item');
-                            if (taskItem) this.deleteTask(taskItem.dataset.taskId);
-                        }
-                    });
-                }
-                
-                // RSO shift display events
-                const rsoShiftDisplay = document.getElementById('rsoShiftDisplay');
-                if (rsoShiftDisplay) {
-                    rsoShiftDisplay.addEventListener('click', (e) => {
-                        if (e.target.classList.contains('delete-shift-btn')) {
-                            this.deleteRSOShift(e.target.dataset.shiftId);
-                        }
-                    });
+                    // Task management grid events
+                    const mainGrid = document.querySelector('.task-management-grid');
+                    if (mainGrid) {
+                        mainGrid.addEventListener('dblclick', (e) => this.handleTaskDoubleClick(e));
+                        mainGrid.addEventListener('dragstart', (e) => this.handleDragStart(e));
+                        mainGrid.addEventListener('dragend', (e) => this.handleDragEnd(e));
+                        mainGrid.addEventListener('dragover', (e) => this.handleDragOver(e));
+                        mainGrid.addEventListener('dragenter', (e) => this.handleDragEnter(e));
+                        mainGrid.addEventListener('dragleave', (e) => this.handleDragLeave(e));
+                        mainGrid.addEventListener('drop', (e) => this.handleDrop(e));
+                        mainGrid.addEventListener('click', (e) => {
+                            if (e.target.closest('.delete-task-btn')) {
+                                const taskItem = e.target.closest('.task-item');
+                                if (taskItem && taskItem.dataset.taskId) {
+                                    this.deleteTask(taskItem.dataset.taskId);
+                                }
+                            }
+                        });
+                    } else {
+                        log('Warning: Task management grid not found');
+                    }
+                    
+                    // RSO shift display events
+                    const rsoShiftDisplay = document.getElementById('rsoShiftDisplay');
+                    if (rsoShiftDisplay) {
+                        rsoShiftDisplay.addEventListener('click', (e) => {
+                            if (e.target.classList.contains('delete-shift-btn')) {
+                                const shiftId = e.target.dataset.shiftId;
+                                if (shiftId) this.deleteRSOShift(shiftId);
+                            }
+                        });
+                    }
+                    
+                    log('Event listeners setup completed');
+                } catch (error) {
+                    console.error('Error setting up event listeners:', error);
+                    // Don't throw - allow app to continue with partial functionality
                 }
             }
             
@@ -1408,15 +1518,21 @@
             }
 
             updateTime() {
-                this.currentTime = new Date();
-                const timeString = this.currentTime.toLocaleTimeString('en-US', { 
-                    hour: '2-digit', 
-                    minute: '2-digit', 
-                    second: '2-digit' 
-                });
-                const timeElement = document.getElementById('currentTime');
-                if (timeElement) timeElement.textContent = timeString;
-                this.updateCurrentTaskIndicator();
+                try {
+                    this.currentTime = new Date();
+                    const timeString = this.currentTime.toLocaleTimeString('en-US', { 
+                        hour: '2-digit', 
+                        minute: '2-digit', 
+                        second: '2-digit' 
+                    });
+                    const timeElement = document.getElementById('currentTime');
+                    if (timeElement) {
+                        timeElement.textContent = timeString;
+                    }
+                    this.updateCurrentTaskIndicator();
+                } catch (error) {
+                    console.error('Error updating time:', error);
+                }
             }
 
             checkTaskTransitions() {
@@ -1442,72 +1558,84 @@
             }
             
             loadTodaysTasks() {
-                const dateKey = this.formatDateKey(this.viewingDate);
-                const dayOfWeek = this.viewingDate.getDay();
-                
-                // Load all saved tasks for this date (including those marked as done)
-                const savedTasksForDay = (this.tasks[dateKey] || []).filter(t => !t.deleted);
-                
-                // Create a map of saved tasks by ID for quick lookup
-                const savedTasksMap = new Map();
-                savedTasksForDay.forEach(task => {
-                    savedTasksMap.set(task.id, task);
-                });
-                
-                let allTasks = [];
-                
-                // Process routine tasks for weekdays
-                if (dayOfWeek >= 1 && dayOfWeek <= 5) { 
-                    const routineTemplate = this.customRoutines[dateKey] || this.defaultWeekdayRoutine;
+                try {
+                    const dateKey = this.formatDateKey(this.viewingDate);
+                    const dayOfWeek = this.viewingDate.getDay();
                     
-                    routineTemplate.forEach(templateTask => {
-                        const taskId = `${dateKey}_${templateTask.id}`;
-                        
-                        // Check if this routine task has been saved with a specific status
-                        if (savedTasksMap.has(taskId)) {
-                            // Use the saved version with its current status (including 'done')
-                            const savedTask = savedTasksMap.get(taskId);
-                            allTasks.push(savedTask);
-                            // Remove from map so we don't add it twice
-                            savedTasksMap.delete(taskId);
-                        } else {
-                            // Create new routine task only if it hasn't been saved before
-                            const newRoutineTask = {
-                                ...templateTask,
-                                id: taskId,
-                                date: dateKey,
-                                status: 'todo',
-                                isRoutine: true,
-                                isLongDuration: templateTask.isLongDuration || templateTask.duration >= 120,
-                                endTime: templateTask.endTime || this.formatTime(
-                                    new Date(this.parseTime(templateTask.time).getTime() + templateTask.duration * 60000)
-                                )
-                            };
-                            allTasks.push(newRoutineTask);
+                    // Load all saved tasks for this date (including those marked as done)
+                    const savedTasksForDay = (this.tasks[dateKey] || []).filter(t => t && !t.deleted);
+                    
+                    // Create a map of saved tasks by ID for quick lookup
+                    const savedTasksMap = new Map();
+                    savedTasksForDay.forEach(task => {
+                        if (task && task.id) {
+                            savedTasksMap.set(task.id, task);
                         }
                     });
+                    
+                    let allTasks = [];
+                    
+                    // Process routine tasks for weekdays
+                    if (dayOfWeek >= 1 && dayOfWeek <= 5) { 
+                        const routineTemplate = this.customRoutines[dateKey] || this.defaultWeekdayRoutine;
+                        
+                        if (Array.isArray(routineTemplate)) {
+                            routineTemplate.forEach(templateTask => {
+                                if (!templateTask || !templateTask.id) return;
+                                
+                                const taskId = `${dateKey}_${templateTask.id}`;
+                                
+                                // Check if this routine task has been saved with a specific status
+                                if (savedTasksMap.has(taskId)) {
+                                    // Use the saved version with its current status (including 'done')
+                                    const savedTask = savedTasksMap.get(taskId);
+                                    allTasks.push(savedTask);
+                                    // Remove from map so we don't add it twice
+                                    savedTasksMap.delete(taskId);
+                                } else {
+                                    // Create new routine task only if it hasn't been saved before
+                                    const newRoutineTask = {
+                                        ...templateTask,
+                                        id: taskId,
+                                        date: dateKey,
+                                        status: 'todo',
+                                        isRoutine: true,
+                                        isLongDuration: templateTask.isLongDuration || templateTask.duration >= 120,
+                                        endTime: templateTask.endTime || this.formatTime(
+                                            new Date(this.parseTime(templateTask.time).getTime() + templateTask.duration * 60000)
+                                        )
+                                    };
+                                    allTasks.push(newRoutineTask);
+                                }
+                            });
+                        }
+                    }
+                    
+                    // Add any remaining saved tasks (custom tasks or weekend tasks)
+                    savedTasksMap.forEach(task => {
+                        if (task) allTasks.push(task);
+                    });
+                    
+                    this.currentDayTasks = allTasks;
+                    
+                    // Only update statuses for today's tasks that are NOT already done
+                    if (this.isToday(this.viewingDate)) {
+                        // This will only change 'todo' to 'inProgress' based on time, never touch 'done'
+                        this.updateTaskStatuses();
+                    }
+                    
+                    log('Loaded tasks for', dateKey, ':', this.currentDayTasks.map(t => ({
+                        id: t.id,
+                        title: t.title,
+                        status: t.status
+                    })));
+                    
+                    this.renderTasks();
+                } catch (error) {
+                    console.error('Error loading today\'s tasks:', error);
+                    this.currentDayTasks = [];
+                    this.renderTasks();
                 }
-                
-                // Add any remaining saved tasks (custom tasks or weekend tasks)
-                savedTasksMap.forEach(task => {
-                    allTasks.push(task);
-                });
-                
-                this.currentDayTasks = allTasks;
-                
-                // Only update statuses for today's tasks that are NOT already done
-                if (this.isToday(this.viewingDate)) {
-                    // This will only change 'todo' to 'inProgress' based on time, never touch 'done'
-                    this.updateTaskStatuses();
-                }
-                
-                log('Loaded tasks for', dateKey, ':', this.currentDayTasks.map(t => ({
-                    id: t.id,
-                    title: t.title,
-                    status: t.status
-                })));
-                
-                this.renderTasks();
             }
 
             updateTaskStatuses() {
@@ -1535,44 +1663,54 @@
             }
 
             renderTasks() {
-                const containers = {
-                    todo: document.getElementById('todoTasks'),
-                    inProgress: document.getElementById('inProgressTasks'),
-                    done: document.getElementById('doneTasks')
-                };
-                
-                // Clear all containers
-                Object.values(containers).forEach(c => {
-                    if (c) c.innerHTML = '';
-                });
+                try {
+                    const containers = {
+                        todo: document.getElementById('todoTasks'),
+                        inProgress: document.getElementById('inProgressTasks'),
+                        done: document.getElementById('doneTasks')
+                    };
+                    
+                    // Check if containers exist
+                    if (!containers.todo || !containers.inProgress || !containers.done) {
+                        log('Warning: Task containers not found');
+                        return;
+                    }
+                    
+                    // Clear all containers
+                    Object.values(containers).forEach(c => {
+                        if (c) c.innerHTML = '';
+                    });
 
-                // Sort tasks by time, but keep done tasks in their order
-                const sortedTasks = [...this.currentDayTasks].sort((a, b) => {
-                    // Keep done tasks in their completed order
-                    if (a.status === 'done' && b.status === 'done') {
-                        return (a.completedAt || '').localeCompare(b.completedAt || '');
-                    }
-                    // Sort other tasks by time
-                    return this.parseTime(a.time) - this.parseTime(b.time);
-                });
-                
-                // Render each task in its appropriate container
-                sortedTasks.forEach(task => {
-                    const taskElement = this.createTaskElement(task);
-                    if (containers[task.status]) {
-                        containers[task.status].appendChild(taskElement);
-                    }
-                });
-                
-                // Log task distribution for debugging
-                const taskCounts = {
-                    todo: this.currentDayTasks.filter(t => t.status === 'todo').length,
-                    inProgress: this.currentDayTasks.filter(t => t.status === 'inProgress').length,
-                    done: this.currentDayTasks.filter(t => t.status === 'done').length
-                };
-                log('Tasks rendered - Todo:', taskCounts.todo, 'In Progress:', taskCounts.inProgress, 'Done:', taskCounts.done);
-                
-                this.updateCounts();
+                    // Sort tasks by time, but keep done tasks in their order
+                    const sortedTasks = [...this.currentDayTasks].sort((a, b) => {
+                        // Keep done tasks in their completed order
+                        if (a.status === 'done' && b.status === 'done') {
+                            return (a.completedAt || '').localeCompare(b.completedAt || '');
+                        }
+                        // Sort other tasks by time
+                        return this.parseTime(a.time) - this.parseTime(b.time);
+                    });
+                    
+                    // Render each task in its appropriate container
+                    sortedTasks.forEach(task => {
+                        const taskElement = this.createTaskElement(task);
+                        if (containers[task.status]) {
+                            containers[task.status].appendChild(taskElement);
+                        }
+                    });
+                    
+                    // Log task distribution for debugging
+                    const taskCounts = {
+                        todo: this.currentDayTasks.filter(t => t.status === 'todo').length,
+                        inProgress: this.currentDayTasks.filter(t => t.status === 'inProgress').length,
+                        done: this.currentDayTasks.filter(t => t.status === 'done').length
+                    };
+                    log('Tasks rendered - Todo:', taskCounts.todo, 'In Progress:', taskCounts.inProgress, 'Done:', taskCounts.done);
+                    
+                    this.updateCounts();
+                } catch (error) {
+                    console.error('Error rendering tasks:', error);
+                }
             }
 
             createTaskElement(task) {
@@ -2027,21 +2165,28 @@
             }
             
             updateRSODisplay() {
-                const container = document.getElementById('todayRSOShiftContainer');
-                if (!container) return;
-                
-                const dateKey = this.formatDateKey(this.viewingDate);
-                const shifts = this.rsoShifts[dateKey] || [];
+                try {
+                    const container = document.getElementById('todayRSOShiftContainer');
+                    if (!container) {
+                        log('Warning: RSO shift container not found');
+                        return;
+                    }
+                    
+                    const dateKey = this.formatDateKey(this.viewingDate);
+                    const shifts = this.rsoShifts[dateKey] || [];
 
-                if (shifts.length > 0) {
-                    container.innerHTML = shifts.map(shift => `
-                        <span class="rso-shift-tag">
-                            Shift ${shift.shift}
-                            <button class="delete-shift-btn" data-shift-id="${shift.id}">&times;</button>
-                        </span>
-                    `).join('');
-                } else {
-                    container.innerHTML = '<span>No RSO Shift</span>';
+                    if (shifts.length > 0) {
+                        container.innerHTML = shifts.map(shift => `
+                            <span class="rso-shift-tag">
+                                Shift ${shift.shift}
+                                <button class="delete-shift-btn" data-shift-id="${shift.id}">&times;</button>
+                            </span>
+                        `).join('');
+                    } else {
+                        container.innerHTML = '<span>No RSO Shift</span>';
+                    }
+                } catch (error) {
+                    console.error('Error updating RSO display:', error);
                 }
             }
             
@@ -2061,21 +2206,27 @@
 
             // Helper and Utility Functions
             updateDateDisplay() {
-                const dateString = this.viewingDate.toLocaleDateString('en-US', { 
-                    weekday: 'long', 
-                    year: 'numeric', 
-                    month: 'long', 
-                    day: 'numeric' 
-                });
-                
-                const currentDateEl = document.getElementById('currentDate');
-                if (currentDateEl) currentDateEl.textContent = dateString;
-                
-                const viewingDateEl = document.getElementById('viewingDate');
-                if (viewingDateEl) {
-                    viewingDateEl.textContent = this.isToday(this.viewingDate) ? 
-                        "Today's Schedule" : 
-                        `Viewing: ${dateString}`;
+                try {
+                    const dateString = this.viewingDate.toLocaleDateString('en-US', { 
+                        weekday: 'long', 
+                        year: 'numeric', 
+                        month: 'long', 
+                        day: 'numeric' 
+                    });
+                    
+                    const currentDateEl = document.getElementById('currentDate');
+                    if (currentDateEl) {
+                        currentDateEl.textContent = dateString;
+                    }
+                    
+                    const viewingDateEl = document.getElementById('viewingDate');
+                    if (viewingDateEl) {
+                        viewingDateEl.textContent = this.isToday(this.viewingDate) ? 
+                            "Today's Schedule" : 
+                            `Viewing: ${dateString}`;
+                    }
+                } catch (error) {
+                    console.error('Error updating date display:', error);
                 }
             }
             
@@ -2166,15 +2317,43 @@
             }
             
             parseTime(timeStr, baseDate = this.viewingDate) { 
-                const [h, m] = timeStr.split(':').map(Number); 
-                const d = new Date(baseDate); 
-                d.setHours(h, m, 0, 0); 
-                return d; 
+                try {
+                    if (!timeStr || typeof timeStr !== 'string') {
+                        log('Warning: Invalid time string:', timeStr);
+                        return new Date(); // Return current time as fallback
+                    }
+                    
+                    const parts = timeStr.split(':');
+                    if (parts.length !== 2) {
+                        log('Warning: Invalid time format:', timeStr);
+                        return new Date();
+                    }
+                    
+                    const h = parseInt(parts[0], 10) || 0;
+                    const m = parseInt(parts[1], 10) || 0;
+                    
+                    const d = new Date(baseDate); 
+                    d.setHours(h, m, 0, 0); 
+                    return d;
+                } catch (error) {
+                    console.error('Error parsing time:', error, 'timeStr:', timeStr);
+                    return new Date();
+                }
             }
             
             formatTime(date, sec = true) { 
-                return date.toLocaleTimeString('en-US', { hour12: false })
-                    .substring(0, sec ? 8 : 5); 
+                try {
+                    if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
+                        log('Warning: Invalid date for formatting:', date);
+                        return '00:00';
+                    }
+                    
+                    return date.toLocaleTimeString('en-US', { hour12: false })
+                        .substring(0, sec ? 8 : 5);
+                } catch (error) {
+                    console.error('Error formatting time:', error);
+                    return '00:00';
+                }
             }
             
             formatDateKey(date) { 
@@ -2271,8 +2450,16 @@
             }
             
             loadNotesContent() { 
-                const notesEl = document.getElementById('quickNotes');
-                if (notesEl) notesEl.value = this.notes; 
+                try {
+                    const notesEl = document.getElementById('quickNotes');
+                    if (notesEl) {
+                        notesEl.value = this.notes || '';
+                    } else {
+                        log('Warning: Notes element not found');
+                    }
+                } catch (error) {
+                    console.error('Error loading notes:', error);
+                }
             }
             
             saveSubPlan() { 
