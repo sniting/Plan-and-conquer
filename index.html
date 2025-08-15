@@ -1348,13 +1348,18 @@
 
                 const task = this.currentDayTasks.find(t => t.id === taskId);
                 if (task && task.status !== newStatus) {
+                    // Update task status
                     task.status = newStatus;
 
                     if (newStatus === 'done') {
                         this.triggerConfetti();
                         task.completedAt = new Date().toISOString();
+                    } else {
+                        // Clear completed timestamp if moving away from done
+                        delete task.completedAt;
                     }
                     
+                    // Save and refresh
                     this.updateAndSaveTask(task);
                 }
             }
@@ -1421,6 +1426,8 @@
                             date: dateKey,
                             status: 'todo',
                             isRoutine: true,
+                            // Ensure isLongDuration is set for tasks >= 120 minutes
+                            isLongDuration: task.isLongDuration || task.duration >= 120,
                             endTime: task.endTime || this.formatTime(new Date(this.parseTime(task.time).getTime() + task.duration * 60000))
                         }))
                         .filter(task => !existingTaskIds.has(task.id));
@@ -1620,6 +1627,11 @@
                 const dateKey = this.formatDateKey(this.viewingDate);
                 if (!this.tasks[dateKey]) this.tasks[dateKey] = [];
                 
+                // Check if task duration is >= 120 minutes and set isLongDuration flag
+                if (data.duration >= 120) {
+                    data.isLongDuration = true;
+                }
+                
                 const newTask = { 
                     ...data, 
                     id: `custom_${Date.now()}`, 
@@ -1628,8 +1640,13 @@
                 };
                 this.tasks[dateKey].push(newTask);
                 
+                // Add to current day tasks
+                this.currentDayTasks.push(newTask);
+                
                 this.dataManager.saveData({ tasks: this.tasks });
+                this.renderTasks(); // Re-render to show the new task
                 this.closeModal(document.getElementById('addTaskModal'));
+                this.showNotification('Task added successfully!', 'success');
             }
 
             updateAndSaveTask(taskToUpdate) {
@@ -1642,12 +1659,26 @@
                 } else {
                     this.tasks[dateKey].push(taskToUpdate);
                 }
+                
+                // Update the current day tasks array
+                const currentTaskIndex = this.currentDayTasks.findIndex(t => t.id === taskToUpdate.id);
+                if (currentTaskIndex !== -1) {
+                    this.currentDayTasks[currentTaskIndex] = taskToUpdate;
+                }
+                
                 this.dataManager.saveData({ tasks: this.tasks });
+                this.renderTasks(); // Re-render after saving
             }
 
             updateTask(taskId, data) {
                 const task = this.currentDayTasks.find(t => t.id === taskId);
                 if (!task) return;
+                
+                // Check if task duration is >= 120 minutes and set isLongDuration flag
+                if (data.duration >= 120) {
+                    data.isLongDuration = true;
+                }
+                
                 Object.assign(task, data);
                 this.updateAndSaveTask(task);
                 this.closeModal(document.getElementById('addTaskModal'));
@@ -1667,7 +1698,11 @@
                     this.tasks[dateKey] = this.tasks[dateKey].filter(t => t.id !== taskId);
                 }
                 
+                // Remove from current day tasks
+                this.currentDayTasks = this.currentDayTasks.filter(t => t.id !== taskId);
+                
                 this.dataManager.saveData({ tasks: this.tasks });
+                this.renderTasks(); // Re-render after deletion
             }
 
             openSubPlanModal(taskId) {
@@ -1803,6 +1838,7 @@
                 
                 const shiftDateInput = document.getElementById('shiftDate');
                 if (shiftDateInput) {
+                    // Use viewing date, not the next date
                     shiftDateInput.value = this.formatDateKey(this.viewingDate);
                 }
                 
@@ -1819,9 +1855,8 @@
                 const shiftType = document.getElementById('shiftType').value;
                 if (!dateStr || !shiftType) return;
 
-                const parts = dateStr.split('-');
-                const selectedDate = new Date(parts[0], parseInt(parts[1], 10) - 1, parts[2]);
-                const dateKey = this.formatDateKey(selectedDate);
+                // Use the date string directly as the key
+                const dateKey = dateStr;
 
                 if (!this.rsoShifts[dateKey]) {
                     this.rsoShifts[dateKey] = [];
@@ -1839,6 +1874,7 @@
                 
                 this.dataManager.saveData({ rsoShifts: this.rsoShifts });
                 
+                // Update display if the saved shift is for the currently viewing date
                 if (dateKey === this.formatDateKey(this.viewingDate)) {
                     this.updateRSODisplay();
                 }
@@ -1877,6 +1913,7 @@
                 }
 
                 this.dataManager.saveData({ rsoShifts: this.rsoShifts });
+                this.updateRSODisplay(); // Update display after deletion
             }
 
             // Helper and Utility Functions
